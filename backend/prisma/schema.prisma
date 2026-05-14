@@ -1,0 +1,144 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Category {
+  Assets
+  Liabilities
+  Equity
+  Revenue
+  Expenses
+}
+
+enum NormalBalance {
+  Debit
+  Credit
+}
+
+enum JournalType {
+  GENERAL    // Jurnal Umum
+  ADJUSTING  // Ayat Jurnal Penyesuaian
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+/// Registered application users
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  username  String   @unique
+  password  String   // bcrypt hash
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  companies Company[]
+
+  @@map("users")
+}
+
+/// Companies for multi-tenant support
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  currency  String   @default("IDR")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  accounts         Account[]
+  journalEntries   JournalEntry[]
+  adjustingEntries AdjustingEntry[]
+
+  @@map("companies")
+}
+
+/// Chart of Accounts — master account list
+model Account {
+  id             String        @id @default(uuid())
+  account_code   String        // e.g. "1101", "2201"
+  account_name   String
+  category       Category
+  normal_balance NormalBalance
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  companyId        String
+  company          Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  journalDetails   JournalDetail[]
+  adjustingDetails AdjustingDetail[]
+
+  @@unique([companyId, account_code])
+  @@map("accounts")
+}
+
+/// Journal header (parent) — covers both General Journal and Adjusting Entries
+model JournalEntry {
+  id          String      @id @default(uuid())
+  date        DateTime    @db.Date
+  description String
+  type        JournalType @default(GENERAL)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  companyId   String
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  details     JournalDetail[]
+
+  @@map("journal_entries")
+}
+
+/// Journal line items (child rows — each debit or credit line)
+model JournalDetail {
+  id             String       @id @default(uuid())
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  journalEntryId String
+  account        Account      @relation(fields: [accountId], references: [id])
+  accountId      String
+  debit          Decimal      @default(0) @db.Decimal(15, 2)
+  credit         Decimal      @default(0) @db.Decimal(15, 2)
+
+  @@map("journal_details")
+}
+
+/// Adjusting Entry header (separate table for clear separation of concerns)
+model AdjustingEntry {
+  id          String   @id @default(uuid())
+  date        DateTime @db.Date
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  companyId   String
+  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  details     AdjustingDetail[]
+
+  @@map("adjusting_entries")
+}
+
+/// Adjusting Entry line items
+model AdjustingDetail {
+  id               String         @id @default(uuid())
+  adjustingEntry   AdjustingEntry @relation(fields: [adjustingEntryId], references: [id], onDelete: Cascade)
+  adjustingEntryId String
+  account          Account        @relation(fields: [accountId], references: [id])
+  accountId        String
+  debit            Decimal        @default(0) @db.Decimal(15, 2)
+  credit           Decimal        @default(0) @db.Decimal(15, 2)
+
+  @@map("adjusting_details")
+}
