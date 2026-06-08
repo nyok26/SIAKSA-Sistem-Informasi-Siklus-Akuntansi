@@ -31,6 +31,8 @@ export function AccountsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteData, setDeleteData] = useState<{id: string, name: string} | null>(null);
   const [formData, setFormData] = useState({ account_code: '', account_name: '', category: 'Assets', normal_balance: 'Debit' });
+  const [duplicateCode, setDuplicateCode] = useState<string | null>(null);
+  const [matchingAccounts, setMatchingAccounts] = useState<Array<{account_code: string, account_name: string}>>([]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -63,6 +65,13 @@ export function AccountsPage() {
         onSuccess: () => setIsOpen(false)
       });
     } else {
+      // Check if the code already exists
+      const codeExists = accounts?.some(acc => acc.account_code === code && acc.id !== editingId);
+      if (codeExists) {
+        setDuplicateCode(code);
+        return;
+      }
+
       createAcc({ ...formData, account_code: code, category: formData.category as any, normal_balance: formData.normal_balance as any }, {
         onSuccess: () => setIsOpen(false)
       });
@@ -78,7 +87,11 @@ export function AccountsPage() {
         </div>
         <Dialog open={isOpen} onOpenChange={(open) => {
           setIsOpen(open);
-          if (!open) resetForm();
+          if (!open) {
+            resetForm();
+            setDuplicateCode(null);
+            setMatchingAccounts([]);
+          }
         }}>
           <DialogTrigger asChild>
             <Button className="gap-2 rounded-xl shadow-sm" onClick={handleOpenCreate}>
@@ -119,7 +132,7 @@ export function AccountsPage() {
               <div className="space-y-2">
                 <Label>Account Code</Label>
                 <Input
-                  className="rounded-xl"
+                  className={`rounded-xl ${duplicateCode ? 'border-red-500' : ''}`}
                   // Value langsung mengambil dari state secara utuh (misal: "111")
                   value={formData.account_code}
                   onChange={(e) => {
@@ -128,15 +141,39 @@ export function AccountsPage() {
                       ? formData.account_code[0]
                       : CATEGORY_PREFIXES[formData.category];
 
+                    // Reset duplicate detection
+                    setDuplicateCode(null);
+
                     // 1. Cek apakah ketikan user masih memiliki prefix yang benar
                     if (val.startsWith(prefix)) {
                       // 2. Opsional tapi sangat disarankan: Blokir huruf/simbol, hanya izinkan angka
                       const onlyNumbers = val.replace(/[^0-9]/g, '');
                       setFormData({ ...formData, account_code: onlyNumbers });
+
+                      // Check for matching accounts for hints
+                      if (onlyNumbers.length >= 2 && accounts) {
+                        const matches = accounts.filter(acc =>
+                          acc.account_code.startsWith(onlyNumbers) &&
+                          acc.id !== editingId
+                        );
+                        setMatchingAccounts(matches);
+                      } else {
+                        setMatchingAccounts([]);
+                      }
+
+                      // Check for exact duplicate
+                      const exactMatch = accounts?.some(acc =>
+                        acc.account_code === onlyNumbers &&
+                        acc.id !== editingId
+                      );
+                      if (exactMatch) {
+                        setDuplicateCode(onlyNumbers);
+                      }
                     }
                     // 3. Jika user menekan backspace sampai prefix-nya mau hilang, tahan state-nya di prefix
                     else if (val.length < prefix.length) {
                       setFormData({ ...formData, account_code: prefix });
+                      setMatchingAccounts([]);
                     }
                   }}
                   // Placeholder menjadi lebih natural, menyesuaikan kategori (misal: "111" atau "211")
@@ -148,6 +185,33 @@ export function AccountsPage() {
                   <p className="text-xs text-muted-foreground">
                     Account code cannot be changed after creation.
                   </p>
+                )}
+
+                {/* Duplicate warning */}
+                {duplicateCode && (
+                  <p className="text-xs text-red-500 flex items-center gap-1">
+                    <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                    Code already exists
+                  </p>
+                )}
+
+                {/* Matching accounts hints */}
+ {!editingId && matchingAccounts.length > 0 && (
+                  <div className="mt-1">
+                    <p className="text-xs text-muted-foreground mb-1">Similar codes:</p>
+                    <div className="max-h-20 overflow-y-auto border rounded-lg p-2 bg-slate-50">
+                      {matchingAccounts.slice(0, 5).map((acc) => (
+                        <div key={acc.account_code} className="text-xs py-1 px-2 hover:bg-slate-100 rounded">
+                          <span className="font-mono text-slate-600">{acc.account_code}</span> - {acc.account_name}
+                        </div>
+                      ))}
+                      {matchingAccounts.length > 5 && (
+                        <div className="text-xs text-muted-foreground text-center py-1">
+                          +{matchingAccounts.length - 5} more
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
               <div className="space-y-2">
@@ -164,7 +228,13 @@ export function AccountsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button type="submit" className="w-full rounded-xl mt-2">{editingId ? 'Save Changes' : 'Save Account'}</Button>
+              <Button
+                type="submit"
+                className="w-full rounded-xl mt-2"
+                disabled={!!duplicateCode}
+              >
+                {editingId ? 'Save Changes' : duplicateCode ? 'Code already exists' : 'Save Account'}
+              </Button>
             </form>
           </DialogContent>
         </Dialog>

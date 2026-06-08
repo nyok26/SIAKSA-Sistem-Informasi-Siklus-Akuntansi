@@ -374,25 +374,33 @@ export class ReportsService {
         acc.journalDebit + acc.adjustingDebit,
         acc.journalCredit + acc.adjustingCredit,
       );
-      // Assets: normal debit → debit_balance
+      // Assets: normal debit → debit_balance, normal credit (contra) → negative credit_balance
       // Liabilities/Equity: normal credit → credit_balance
-      const amount =
-        acc.normal_balance === NormalBalance.Debit
+      let amount;
+      if (acc.category === Category.Assets) {
+        // For assets: debit normal balance = positive, credit normal balance (contra) = negative
+        amount = acc.normal_balance === NormalBalance.Debit
           ? adjTb.debit_balance - adjTb.credit_balance
-          : adjTb.credit_balance - adjTb.debit_balance;
+          : -(adjTb.credit_balance - adjTb.debit_balance);
+      } else {
+        // For liabilities and equity: credit normal balance = positive, debit normal balance (contra) = negative
+        amount = acc.normal_balance === NormalBalance.Credit
+          ? adjTb.credit_balance - adjTb.debit_balance
+          : -(adjTb.debit_balance - adjTb.credit_balance);
+      }
 
       return {
         account_id: acc.id,
         account_code: acc.account_code,
         account_name: acc.account_name,
-        amount: Math.max(0, amount),
+        amount, // Allow negative amounts for contra accounts
       };
     };
 
     const assets = aggregates
       .filter((a) => a.category === Category.Assets)
       .map(mapToLine)
-      .filter((r) => r.amount > 0);
+      .filter((r) => r.amount !== 0);
 
     const liabilities = aggregates
       .filter((a) => a.category === Category.Liabilities)
@@ -402,18 +410,18 @@ export class ReportsService {
     const equity = aggregates
       .filter((a) => a.category === Category.Equity)
       .map(mapToLine)
-      .filter((r) => r.amount > 0);
+      .filter((r) => r.amount !== 0);
 
     const equityAccounts = aggregates.filter((a) => a.category === Category.Equity);
-    // Credit-normal equity adds to capital; debit-normal (Prive / drawings) subtracts.
-    const totalBaseEquity = equityAccounts.reduce((sum, acc) => {
-      const line = mapToLine(acc);
-      if (this.isContraEquityDrawing(acc)) {
-        return sum - line.amount;
-      }
-      return sum + line.amount;
+    // Credit-normal equity adds to capital; debit-normal (Prive / drawings) is already negative.
+    const totalBaseEquity = equityAccounts.reduce((sum, acc) => sum + mapToLine(acc).amount, 0);
+
+    // For Assets: Debit normal balance assets are added, Credit normal balance (contra assets) are subtracted
+    const totalAssets = assets.reduce((sum, asset) => {
+      // The amount for contra assets (Credit normal balance) is already negative
+      // So adding a negative value is equivalent to subtraction
+      return sum + asset.amount;
     }, 0);
-    const totalAssets = assets.reduce((s, r) => s + r.amount, 0);
     const totalLiabilities = liabilities.reduce((s, r) => s + r.amount, 0);
     const totalEquity = totalBaseEquity + netIncome; // includes retained earnings
 

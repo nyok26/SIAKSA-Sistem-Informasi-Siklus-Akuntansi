@@ -26,8 +26,8 @@ enum NormalBalance {
 }
 
 enum JournalType {
-  GENERAL    // Jurnal Umum
-  ADJUSTING  // Ayat Jurnal Penyesuaian
+  GENERAL // Jurnal Umum
+  ADJUSTING // Ayat Jurnal Penyesuaian
 }
 
 // ─── Models ───────────────────────────────────────────────────────────────────
@@ -37,7 +37,7 @@ model User {
   id        String   @id @default(uuid())
   email     String   @unique
   username  String   @unique
-  password  String   // bcrypt hash
+  password  String // bcrypt hash
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -54,8 +54,8 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  ownerId   String
-  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   accounts         Account[]
   journalEntries   JournalEntry[]
@@ -67,7 +67,7 @@ model Company {
 /// Chart of Accounts — master account list
 model Account {
   id             String        @id @default(uuid())
-  account_code   String        // e.g. "1101", "2201"
+  account_code   String // e.g. "1101", "2201"
   account_name   String
   category       Category
   normal_balance NormalBalance
@@ -76,7 +76,7 @@ model Account {
 
   // Relations
   companyId        String
-  company          Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   journalDetails   JournalDetail[]
   adjustingDetails AdjustingDetail[]
 
@@ -94,9 +94,9 @@ model JournalEntry {
   updatedAt   DateTime    @updatedAt
 
   // Relations
-  companyId   String
-  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  details     JournalDetail[]
+  companyId String
+  company   Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  details   JournalDetail[]
 
   @@map("journal_entries")
 }
@@ -106,7 +106,7 @@ model JournalDetail {
   id             String       @id @default(uuid())
   journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
   journalEntryId String
-  account        Account      @relation(fields: [accountId], references: [id])
+  account        Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
   accountId      String
   debit          Decimal      @default(0) @db.Decimal(15, 2)
   credit         Decimal      @default(0) @db.Decimal(15, 2)
@@ -123,9 +123,9 @@ model AdjustingEntry {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  companyId   String
-  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  details     AdjustingDetail[]
+  companyId String
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  details   AdjustingDetail[]
 
   @@map("adjusting_entries")
 }
@@ -135,7 +135,7 @@ model AdjustingDetail {
   id               String         @id @default(uuid())
   adjustingEntry   AdjustingEntry @relation(fields: [adjustingEntryId], references: [id], onDelete: Cascade)
   adjustingEntryId String
-  account          Account        @relation(fields: [accountId], references: [id])
+  account          Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
   accountId        String
   debit            Decimal        @default(0) @db.Decimal(15, 2)
   credit           Decimal        @default(0) @db.Decimal(15, 2)

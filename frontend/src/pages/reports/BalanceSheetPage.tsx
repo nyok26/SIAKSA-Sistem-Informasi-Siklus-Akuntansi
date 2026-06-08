@@ -14,6 +14,13 @@ export function BalanceSheetPage() {
   const currency = activeCompany?.currency || 'IDR';
   const { data, isLoading } = useBalanceSheet(dateRange);
 
+  const formatEquityAmount = (amount: number) => {
+    if (amount < 0) {
+      return `(${formatCurrency(Math.abs(amount), currency)})`;
+    }
+    return formatCurrency(amount, currency);
+  };
+
   const periodLocale = reportPeriodLocaleFromCurrency(activeCompany?.currency);
   const periodLabel = useMemo(
     () => formatAccountingReportPeriod(dateRange, periodLocale),
@@ -94,8 +101,12 @@ export function BalanceSheetPage() {
                     <div className="space-y-3 pl-4">
                       {data?.equity.map(e => (
                       <div key={e.account_id} className="flex justify-between items-center gap-4">
-                        <span className="text-foreground">{e.account_name}</span>
-                        <span className="font-mono report-print-amount">{formatCurrency(e.amount, currency)}</span>
+                        <span className="text-foreground">
+                          {e.amount < 0 ? `Less: ${e.account_name}` : e.account_name}
+                        </span>
+                        <span className="font-mono report-print-amount">
+                          {formatEquityAmount(e.amount)}
+                        </span>
                       </div>
                       ))}
                       <div className="flex justify-between items-center gap-4">
