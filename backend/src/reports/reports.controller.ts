@@ -80,15 +80,28 @@ export class ReportsController {
 
   /**
    * GET /api/reports/balance-sheet
+   * Note: Balance Sheet ignores startDate (it's a snapshot "As Of" endDate)
    */
   @Get('balance-sheet')
   getBalanceSheet(
+    @Headers('x-company-id') companyId: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    if (!companyId) throw new BadRequestException('x-company-id header is required');
+    return this.reportsService.getBalanceSheet(companyId, endDate);
+  }
+
+  /**
+   * GET /api/reports/statement-of-equity
+   */
+  @Get('statement-of-equity')
+  getStatementOfEquity(
     @Headers('x-company-id') companyId: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
     if (!companyId) throw new BadRequestException('x-company-id header is required');
-    return this.reportsService.getBalanceSheet(companyId, startDate, endDate);
+    return this.reportsService.getStatementOfEquity(companyId, startDate, endDate);
   }
 
   /**

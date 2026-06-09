@@ -14,6 +14,7 @@ import { TrialBalancePage } from '@/pages/reports/TrialBalancePage';
 import { WorksheetPage } from '@/pages/reports/WorksheetPage';
 import { IncomeStatementPage } from '@/pages/reports/IncomeStatementPage';
 import { BalanceSheetPage } from '@/pages/reports/BalanceSheetPage';
+import { StatementOfEquityPage } from '@/pages/reports/StatementOfEquityPage';
 import { CompanySettingsPage } from '@/pages/settings/CompanySettingsPage';
 
 const queryClient = new QueryClient({
@@ -41,6 +42,7 @@ export default function App() {
             <Route path="/worksheet" element={<WorksheetPage />} />
             <Route path="/income-statement" element={<IncomeStatementPage />} />
             <Route path="/balance-sheet" element={<BalanceSheetPage />} />
+            <Route path="/statement-of-equity" element={<StatementOfEquityPage />} />
             <Route path="/settings/company" element={<CompanySettingsPage />} />
           </Route>
 

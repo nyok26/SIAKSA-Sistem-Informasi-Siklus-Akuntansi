@@ -140,15 +140,13 @@ export function CompanySettingsPage() {
 
             <div className="space-y-2">
               <Label className="text-sm font-medium text-slate-700">Currency</Label>
-              <Select value={currency} onValueChange={setCurrency}>
-                <SelectTrigger className="rounded-xl border-border/50 bg-slate-50 shadow-sm focus-visible:ring-primary/20">
-                  <SelectValue placeholder="Select currency" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="IDR">IDR - Indonesian Rupiah</SelectItem>
-                  <SelectItem value="USD">USD - US Dollar</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="px-3 py-2 rounded-xl bg-slate-100 border border-border/40 font-mono text-xs text-slate-500">
+                {currency === "IDR"
+                  ? "IDR - Indonesian Rupiah"
+                  : currency === "USD"
+                    ? "USD - US Dollar"
+                    : "-"}
+              </div>
               <p className="text-xs text-slate-400">All financial reports and journal entries will be formatted in this currency.</p>
             </div>
 

@@ -34,15 +34,17 @@ export function DateFilter({ onChange }: DateFilterProps) {
       startM = m - 1; endM = m - 1;
     }
 
-    // Using local timezone to avoid off-by-one errors with UTC boundaries
-    const start = new Date(y, startM, 1);
-    const end = new Date(y, endM + 1, 0);
+    // FIX: Use UTC dates to avoid timezone boundary issues
+    // Start: First day of the month at UTC midnight
+    const start = new Date(Date.UTC(y, startM, 1));
+    // End: Last day of the month at UTC midnight
+    const end = new Date(Date.UTC(y, endM + 1, 0));
 
     const pad = (n: number) => n.toString().padStart(2, '0');
-    
+
     onChange({
-      startDate: `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`,
-      endDate: `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`,
+      startDate: `${start.getUTCFullYear()}-${pad(start.getUTCMonth() + 1)}-${pad(start.getUTCDate())}`,
+      endDate: `${end.getUTCFullYear()}-${pad(end.getUTCMonth() + 1)}-${pad(end.getUTCDate())}`,
     });
   }, [filterType, year]);
 

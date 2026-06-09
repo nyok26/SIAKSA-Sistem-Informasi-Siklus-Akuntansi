@@ -47,7 +47,7 @@ export function BalanceSheetPage() {
           periodLabel={periodLabel}
           className="p-8"
         />
-        
+
         <CardContent className="p-0">
           {isLoading ? (
             <div className="py-16 text-center text-muted-foreground">Loading report…</div>
@@ -59,21 +59,21 @@ export function BalanceSheetPage() {
                   <h4 className="font-bold text-lg text-blue-400 border-b border-border pb-2 mb-4">Assets</h4>
                   <div className="space-y-3 pl-4">
                     {data?.assets.map(a => (
-                    <div key={a.account_id} className="flex justify-between items-center gap-4">
-                      <span className="text-foreground">{a.account_name}</span>
-                      <span className="font-mono report-print-amount">{formatCurrency(a.amount, currency)}</span>
-                    </div>
+                      <div key={a.account_id} className="flex justify-between items-center gap-4">
+                        <span className="text-foreground">{a.account_name}</span>
+                        <span className="font-mono report-print-amount">{formatCurrency(a.amount, currency)}</span>
+                      </div>
                     ))}
                     {data?.assets.length === 0 && <div className="text-muted-foreground text-sm italic">No assets recorded</div>}
                   </div>
                 </div>
 
-              <div className="flex justify-between items-center pt-4 border-t-2 border-border font-bold text-lg text-blue-400 report-print-total-banner">
-                <span>Total Assets</span>
-                <span className="font-mono border-b-4 border-double border-current report-print-amount">
-                  {formatCurrency(data?.totalAssets || 0, currency)}
-                </span>
-              </div>
+                <div className="flex justify-between items-center pt-4 border-t-2 border-border font-bold text-lg text-blue-400 report-print-total-banner">
+                  <span>Total Assets</span>
+                  <span className="font-mono border-b-4 border-double border-current report-print-amount">
+                    {formatCurrency(data?.totalAssets || 0, currency)}
+                  </span>
+                </div>
               </div>
 
               {/* RIGHT: Liabilities & Equity */}
@@ -83,10 +83,10 @@ export function BalanceSheetPage() {
                     <h4 className="font-bold text-lg text-orange-400 border-b border-border pb-2 mb-4">Liabilities</h4>
                     <div className="space-y-3 pl-4">
                       {data?.liabilities.map(l => (
-                      <div key={l.account_id} className="flex justify-between items-center gap-4">
-                        <span className="text-foreground">{l.account_name}</span>
-                        <span className="font-mono report-print-amount">{formatCurrency(l.amount, currency)}</span>
-                      </div>
+                        <div key={l.account_id} className="flex justify-between items-center gap-4">
+                          <span className="text-foreground">{l.account_name}</span>
+                          <span className="font-mono report-print-amount">{formatCurrency(l.amount, currency)}</span>
+                        </div>
                       ))}
                       {data?.liabilities.length === 0 && <div className="text-muted-foreground text-sm italic">No liabilities recorded</div>}
                       <div className="flex justify-between items-center pt-2 font-bold gap-4">
@@ -100,14 +100,14 @@ export function BalanceSheetPage() {
                     <h4 className="font-bold text-lg text-purple-400 border-b border-border pb-2 mb-4">Equity</h4>
                     <div className="space-y-3 pl-4">
                       {data?.equity.map(e => (
-                      <div key={e.account_id} className="flex justify-between items-center gap-4">
-                        <span className="text-foreground">
-                          {e.amount < 0 ? `Less: ${e.account_name}` : e.account_name}
-                        </span>
-                        <span className="font-mono report-print-amount">
-                          {formatEquityAmount(e.amount)}
-                        </span>
-                      </div>
+                        <div key={e.account_id} className="flex justify-between items-center gap-4">
+                          <span className="text-foreground">
+                            {e.amount < 0 ? `Less: ${e.account_name}` : e.account_name}
+                          </span>
+                          <span className="font-mono report-print-amount">
+                            {formatEquityAmount(e.amount)}
+                          </span>
+                        </div>
                       ))}
                       <div className="flex justify-between items-center gap-4">
                         <span className="text-foreground italic">Add: Net Income</span>

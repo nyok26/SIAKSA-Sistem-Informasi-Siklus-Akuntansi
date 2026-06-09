@@ -22,29 +22,95 @@ interface AccountWithAggregates {
 export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // ── Shared aggregation base ─────────────────────────────────────────────────
+  // ── Date Utilities (UTC-based for timezone consistency) ────────────────────
 
   /**
-   * Loads all accounts with their total debit/credit from both
-   * general journal and adjusting entries.
+   * Parses a YYYY-MM-DD string as UTC midnight.
+   *
+   * PROBLEM SOLVED: Ensures consistent date interpretation regardless of
+   * server timezone. Frontend sends "2026-06-01", backend interprets as
+   * 2026-06-01T00:00:00.000Z (UTC), avoiding timezone boundary leaks.
+   *
+   * Example:
+   *   Input: "2026-06-01"
+   *   Output: Date object representing 2026-06-01T00:00:00.000Z
    */
-  private async loadAccountAggregates(companyId: string, startDate?: string, endDate?: string): Promise<AccountWithAggregates[]> {
-    const dateFilter: any = {};
-    if (startDate) dateFilter.gte = new Date(startDate);
-    if (endDate) dateFilter.lte = new Date(endDate);
-    
-    const detailsWhere = Object.keys(dateFilter).length > 0 ? { date: dateFilter } : undefined;
+  private parseUTCDate(dateStr: string): Date {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d));
+  }
+
+  /**
+   * Returns the exclusive upper bound for a given date string (UTC).
+   * i.e. "everything BEFORE the next calendar day (UTC)"
+   * which is equivalent to "everything UP TO AND INCLUDING endDate (UTC)".
+   *
+   * Example:
+   *   Input: "2026-06-30"
+   *   Output: Date object representing 2026-07-01T00:00:00.000Z
+   */
+  private parseUTCDateExclusiveEnd(dateStr: string): Date {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d + 1));
+  }
+
+  /**
+   * Returns a Prisma date filter for "strictly before startDate (UTC)".
+   *
+   * BUG FIX: Uses UTC parsing to ensure transactions on June 1st are never
+   * accidentally excluded when filtering for June.
+   */
+  private buildStrictlyBeforeDateFilter(startDate: string): { lt: Date } {
+    return { lt: this.parseUTCDate(startDate) };
+  }
+
+  /**
+   * Returns a Prisma date filter for "within [startDate, endDate] inclusive (UTC)".
+   */
+  private buildPeriodDateFilter(startDate?: string, endDate?: string): { gte?: Date; lt?: Date } {
+    const filter: { gte?: Date; lt?: Date } = {};
+    if (startDate) filter.gte = this.parseUTCDate(startDate);
+    if (endDate) filter.lt = this.parseUTCDateExclusiveEnd(endDate);
+    return filter;
+  }
+
+  // ── Shared Aggregation Base ─────────────────────────────────────────────────
+
+  /**
+   * Loads all accounts for a company with their debit/credit totals
+   * for the specified date range.
+   *
+   * @param strictBeforeStartDate - When true, fetches transactions strictly
+   *   BEFORE startDate (for computing "beginning balance"). Uses parseLocalDate
+   *   consistently to avoid UTC timezone boundary issues.
+   */
+  private async loadAccountAggregates(
+    companyId: string,
+    startDate?: string,
+    endDate?: string,
+    strictBeforeStartDate = false,
+  ): Promise<AccountWithAggregates[]> {
+    const detailsWhere: any = {};
+
+    if (strictBeforeStartDate && startDate) {
+      detailsWhere.date = this.buildStrictlyBeforeDateFilter(startDate);
+    } else {
+      const periodFilter = this.buildPeriodDateFilter(startDate, endDate);
+      if (Object.keys(periodFilter).length > 0) {
+        detailsWhere.date = periodFilter;
+      }
+    }
 
     const accounts = await this.prisma.account.findMany({
       where: { companyId },
       orderBy: { account_code: 'asc' },
       include: {
         journalDetails: {
-          where: detailsWhere ? { journalEntry: detailsWhere } : undefined,
+          where: Object.keys(detailsWhere).length > 0 ? { journalEntry: detailsWhere } : undefined,
           select: { debit: true, credit: true },
         },
         adjustingDetails: {
-          where: detailsWhere ? { adjustingEntry: detailsWhere } : undefined,
+          where: Object.keys(detailsWhere).length > 0 ? { adjustingEntry: detailsWhere } : undefined,
           select: { debit: true, credit: true },
         },
       },
@@ -56,33 +122,14 @@ export class ReportsService {
       account_name: acc.account_name,
       category: acc.category,
       normal_balance: acc.normal_balance,
-      journalDebit: acc.journalDetails.reduce(
-        (s, d) => s + Number(d.debit),
-        0,
-      ),
-      journalCredit: acc.journalDetails.reduce(
-        (s, d) => s + Number(d.credit),
-        0,
-      ),
-      adjustingDebit: acc.adjustingDetails.reduce(
-        (s, d) => s + Number(d.debit),
-        0,
-      ),
-      adjustingCredit: acc.adjustingDetails.reduce(
-        (s, d) => s + Number(d.credit),
-        0,
-      ),
+      journalDebit: acc.journalDetails.reduce((s, d) => s + Number(d.debit), 0),
+      journalCredit: acc.journalDetails.reduce((s, d) => s + Number(d.credit), 0),
+      adjustingDebit: acc.adjustingDetails.reduce((s, d) => s + Number(d.debit), 0),
+      adjustingCredit: acc.adjustingDetails.reduce((s, d) => s + Number(d.credit), 0),
     }));
   }
 
-  /**
-   * Computes the "trial balance" columns (debit_balance / credit_balance)
-   * from raw debit/credit totals.
-   *
-   * Convention: net = totalDebit - totalCredit.
-   *   If net >= 0 → show in debit column.
-   *   If net  < 0 → show absolute value in credit column.
-   */
+  // ── Helpers (minor improvements) ───────────────────────────────────────────
   private toTrialBalanceCols(totalDebit: number, totalCredit: number) {
     const net = totalDebit - totalCredit;
     return {
@@ -91,32 +138,32 @@ export class ReportsService {
     };
   }
 
-  /** Contra-equity (e.g. Prive / Owner's Drawings): Equity category, debit normal balance. */
-  private isContraEquityDrawing(acc: AccountWithAggregates): boolean {
-    return acc.category === Category.Equity && acc.normal_balance === NormalBalance.Debit;
-  }
-
-  /**
-   * Heuristic: drawings sometimes created under Expenses by mistake; they must not hit net income.
-   */
   private isMisclassifiedDrawingAsExpense(acc: AccountWithAggregates): boolean {
     if (acc.category !== Category.Expenses) return false;
     const n = acc.account_name.toLowerCase();
-    return /prive|drawing|penarikan\s*modal|tarik\s*modal|pengambilan\s*modal|owner'?s?\s*withdraw|modal\s*ditarik/.test(
-      n,
+    return /prive|drawing|penarikan|withdraw|dividen/i.test(n);
+  }
+
+  private isDrawingAccount(acc: AccountWithAggregates): boolean {
+    const n = acc.account_name.toLowerCase();
+    return (
+      (acc.category === Category.Equity && acc.normal_balance === NormalBalance.Debit) ||
+      /prive|drawing|penarikan|withdraw|dividen/i.test(n)
     );
   }
 
   // ── 1. General Ledger ───────────────────────────────────────────────────────
 
-  /** Returns full transaction history per account with running balance. */
-  async getLedger(companyId: string, accountId?: string, startDate?: string, endDate?: string) {
+  async getLedger(
+    companyId: string,
+    accountId?: string,
+    startDate?: string,
+    endDate?: string,
+  ) {
     const where = accountId ? { id: accountId, companyId } : { companyId };
-
-    const dateFilter: any = {};
-    if (startDate) dateFilter.gte = new Date(startDate);
-    if (endDate) dateFilter.lte = new Date(endDate);
-    const detailsWhere = Object.keys(dateFilter).length > 0 ? { date: dateFilter } : undefined;
+    const dateFilter = this.buildPeriodDateFilter(startDate, endDate);
+    const hasFilter = Object.keys(dateFilter).length > 0;
+    const detailsWhere = hasFilter ? { date: dateFilter } : undefined;
 
     const accounts = await this.prisma.account.findMany({
       where,
@@ -125,24 +172,19 @@ export class ReportsService {
         journalDetails: {
           where: detailsWhere ? { journalEntry: detailsWhere } : undefined,
           include: {
-            journalEntry: {
-              select: { id: true, date: true, description: true },
-            },
+            journalEntry: { select: { id: true, date: true, description: true } },
           },
         },
         adjustingDetails: {
           where: detailsWhere ? { adjustingEntry: detailsWhere } : undefined,
           include: {
-            adjustingEntry: {
-              select: { id: true, date: true, description: true },
-            },
+            adjustingEntry: { select: { id: true, date: true, description: true } },
           },
         },
       },
     });
 
     return accounts.map((acc) => {
-      // Merge general journal + adjusting into a single list, sorted by date
       const transactions = [
         ...acc.journalDetails.map((d) => ({
           source_id: d.journalEntry.id,
@@ -160,18 +202,14 @@ export class ReportsService {
           debit: Number(d.debit),
           credit: Number(d.credit),
         })),
-      ].sort(
-        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-      );
+      ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      // Running balance (direction depends on normal balance)
       let balance = 0;
       const rows = transactions.map((t) => {
-        if (acc.normal_balance === NormalBalance.Debit) {
-          balance += t.debit - t.credit;
-        } else {
-          balance += t.credit - t.debit;
-        }
+        balance +=
+          acc.normal_balance === NormalBalance.Debit
+            ? t.debit - t.credit
+            : t.credit - t.debit;
         return { ...t, balance };
       });
 
@@ -189,20 +227,18 @@ export class ReportsService {
 
   // ── 2. Trial Balance ────────────────────────────────────────────────────────
 
-  /**
-   * @param adjusted - false = Unadjusted TB (journal only),
-   *                   true  = Adjusted TB (journal + adjusting)
-   */
-  async getTrialBalance(companyId: string, adjusted: boolean, startDate?: string, endDate?: string) {
+  async getTrialBalance(
+    companyId: string,
+    adjusted: boolean,
+    startDate?: string,
+    endDate?: string,
+  ) {
     const aggregates = await this.loadAccountAggregates(companyId, startDate, endDate);
 
     const rows = aggregates
       .map((acc) => {
-        const totalDebit =
-          acc.journalDebit + (adjusted ? acc.adjustingDebit : 0);
-        const totalCredit =
-          acc.journalCredit + (adjusted ? acc.adjustingCredit : 0);
-
+        const totalDebit = acc.journalDebit + (adjusted ? acc.adjustingDebit : 0);
+        const totalCredit = acc.journalCredit + (adjusted ? acc.adjustingCredit : 0);
         return {
           account_id: acc.id,
           account_code: acc.account_code,
@@ -212,7 +248,6 @@ export class ReportsService {
           ...this.toTrialBalanceCols(totalDebit, totalCredit),
         };
       })
-      // Only include accounts with activity
       .filter((r) => r.debit_balance !== 0 || r.credit_balance !== 0);
 
     const totals = rows.reduce(
@@ -233,26 +268,18 @@ export class ReportsService {
 
     const rows = aggregates
       .map((acc) => {
-        // ── Columns 1-2: Unadjusted Trial Balance ───────────────────────────
-        const tb = this.toTrialBalanceCols(
-          acc.journalDebit,
-          acc.journalCredit,
-        );
-
-        // ── Columns 3-4: Adjustments ────────────────────────────────────────
+        const tb = this.toTrialBalanceCols(acc.journalDebit, acc.journalCredit);
         const adj_debit = acc.adjustingDebit;
         const adj_credit = acc.adjustingCredit;
-
-        // ── Columns 5-6: Adjusted Trial Balance ─────────────────────────────
         const adjTb = this.toTrialBalanceCols(
           acc.journalDebit + acc.adjustingDebit,
           acc.journalCredit + acc.adjustingCredit,
         );
 
-        // ── Columns 7-8 & 9-10: Allocate to IS or BS by category ───────────
         const countsTowardIncomeStatement =
           acc.category === Category.Revenue ||
-          (acc.category === Category.Expenses && !this.isMisclassifiedDrawingAsExpense(acc));
+          (acc.category === Category.Expenses &&
+            !this.isMisclassifiedDrawingAsExpense(acc));
 
         const is_debit = countsTowardIncomeStatement ? adjTb.debit_balance : 0;
         const is_credit = countsTowardIncomeStatement ? adjTb.credit_balance : 0;
@@ -265,29 +292,20 @@ export class ReportsService {
           account_name: acc.account_name,
           category: acc.category,
           normal_balance: acc.normal_balance,
-          // Unadjusted TB
           tb_debit: tb.debit_balance,
           tb_credit: tb.credit_balance,
-          // Adjustments (raw amounts, not net)
           adj_debit,
           adj_credit,
-          // Adjusted TB
           adj_tb_debit: adjTb.debit_balance,
           adj_tb_credit: adjTb.credit_balance,
-          // Income Statement
           is_debit,
           is_credit,
-          // Balance Sheet
           bs_debit,
           bs_credit,
         };
       })
-      .filter(
-        (r) =>
-          r.tb_debit + r.tb_credit + r.adj_debit + r.adj_credit > 0,
-      );
+      .filter((r) => r.tb_debit + r.tb_credit + r.adj_debit + r.adj_credit > 0);
 
-    // Column totals
     const totals = rows.reduce(
       (acc, r) => ({
         tb_debit: acc.tb_debit + r.tb_debit,
@@ -310,25 +328,28 @@ export class ReportsService {
       },
     );
 
-    // Net income plugs the gap in IS and BS totals
     const netIncome = totals.is_credit - totals.is_debit;
-
     return { rows, totals, net_income: netIncome };
   }
 
   // ── 4. Income Statement ─────────────────────────────────────────────────────
 
-  async getIncomeStatement(companyId: string, startDate?: string, endDate?: string) {
-    const aggregates = await this.loadAccountAggregates(companyId, startDate, endDate);
-
-    const revenueAccounts = aggregates.filter(
-      (a) => a.category === Category.Revenue,
+  async getIncomeStatement(
+    companyId: string,
+    startDate?: string,
+    endDate?: string,
+    strictBeforeStartDate?: boolean,
+  ) {
+    const aggregates = await this.loadAccountAggregates(
+      companyId,
+      startDate,
+      endDate,
+      strictBeforeStartDate,
     );
+
+    const revenueAccounts = aggregates.filter((a) => a.category === Category.Revenue);
     const expenseAccounts = aggregates.filter(
-      (a) =>
-        a.category === Category.Expenses &&
-        // Owner drawings mis-tagged as Expenses must not reduce net income.
-        !this.isMisclassifiedDrawingAsExpense(a),
+      (a) => a.category === Category.Expenses && !this.isMisclassifiedDrawingAsExpense(a),
     );
 
     const mapToLine = (acc: AccountWithAggregates) => {
@@ -336,13 +357,10 @@ export class ReportsService {
         acc.journalDebit + acc.adjustingDebit,
         acc.journalCredit + acc.adjustingCredit,
       );
-      // Revenue: normal credit → use credit_balance as the "amount"
-      // Expenses: normal debit → use debit_balance as the "amount"
       const amount =
         acc.normal_balance === NormalBalance.Credit
           ? adjTb.credit_balance - adjTb.debit_balance
           : adjTb.debit_balance - adjTb.credit_balance;
-
       return {
         account_id: acc.id,
         account_code: acc.account_code,
@@ -352,48 +370,45 @@ export class ReportsService {
     };
 
     const revenue = revenueAccounts.map(mapToLine).filter((r) => r.amount > 0);
-    const expenses = expenseAccounts
-      .map(mapToLine)
-      .filter((r) => r.amount > 0);
+    const expenses = expenseAccounts.map(mapToLine).filter((r) => r.amount > 0);
 
     const totalRevenue = revenue.reduce((s, r) => s + r.amount, 0);
     const totalExpenses = expenses.reduce((s, r) => s + r.amount, 0);
-    const netIncome = totalRevenue - totalExpenses;
-
-    return { revenue, expenses, totalRevenue, totalExpenses, netIncome };
+    return { revenue, expenses, totalRevenue, totalExpenses, netIncome: totalRevenue - totalExpenses };
   }
 
   // ── 5. Balance Sheet ────────────────────────────────────────────────────────
 
-  async getBalanceSheet(companyId: string, startDate?: string, endDate?: string) {
-    const aggregates = await this.loadAccountAggregates(companyId, startDate, endDate);
-    const { netIncome } = await this.getIncomeStatement(companyId, startDate, endDate);
+ async getBalanceSheet(companyId: string, endDate?: string) {
+    const aggregates = await this.loadAccountAggregates(companyId, undefined, endDate);
+    
+    // Virtual Closing: Tarik seluruh laba rugi dari awal waktu hingga endDate
+    const { netIncome } = await this.getIncomeStatement(companyId, undefined, endDate);
 
     const mapToLine = (acc: AccountWithAggregates) => {
       const adjTb = this.toTrialBalanceCols(
         acc.journalDebit + acc.adjustingDebit,
         acc.journalCredit + acc.adjustingCredit,
       );
-      // Assets: normal debit → debit_balance, normal credit (contra) → negative credit_balance
-      // Liabilities/Equity: normal credit → credit_balance
-      let amount;
+
+      let amount: number;
       if (acc.category === Category.Assets) {
-        // For assets: debit normal balance = positive, credit normal balance (contra) = negative
-        amount = acc.normal_balance === NormalBalance.Debit
-          ? adjTb.debit_balance - adjTb.credit_balance
-          : -(adjTb.credit_balance - adjTb.debit_balance);
+        amount =
+          acc.normal_balance === NormalBalance.Debit
+            ? adjTb.debit_balance - adjTb.credit_balance
+            : -(adjTb.credit_balance - adjTb.debit_balance);
       } else {
-        // For liabilities and equity: credit normal balance = positive, debit normal balance (contra) = negative
-        amount = acc.normal_balance === NormalBalance.Credit
-          ? adjTb.credit_balance - adjTb.debit_balance
-          : -(adjTb.debit_balance - adjTb.credit_balance);
+        amount =
+          acc.normal_balance === NormalBalance.Credit
+            ? adjTb.credit_balance - adjTb.debit_balance
+            : -(adjTb.debit_balance - adjTb.credit_balance);
       }
 
       return {
         account_id: acc.id,
         account_code: acc.account_code,
         account_name: acc.account_name,
-        amount, // Allow negative amounts for contra accounts
+        amount,
       };
     };
 
@@ -407,43 +422,191 @@ export class ReportsService {
       .map(mapToLine)
       .filter((r) => r.amount > 0);
 
-    const equity = aggregates
+    // Ambil semua akun Ekuitas
+    const rawEquity = aggregates
       .filter((a) => a.category === Category.Equity)
-      .map(mapToLine)
-      .filter((r) => r.amount !== 0);
+      .map(mapToLine);
 
-    const equityAccounts = aggregates.filter((a) => a.category === Category.Equity);
-    // Credit-normal equity adds to capital; debit-normal (Prive / drawings) is already negative.
-    const totalBaseEquity = equityAccounts.reduce((sum, acc) => sum + mapToLine(acc).amount, 0);
+    // ── PROSES VIRTUAL CLOSING (INJEKSI LABA DITAHAN) ──
+    // Cari akun yang berfungsi sebagai penampung laba
+    const retainedEarningsAcc = rawEquity.find((e) => 
+      /laba ditahan|retained earnings/i.test(e.account_name)
+    );
 
-    // For Assets: Debit normal balance assets are added, Credit normal balance (contra assets) are subtracted
-    const totalAssets = assets.reduce((sum, asset) => {
-      // The amount for contra assets (Credit normal balance) is already negative
-      // So adding a negative value is equivalent to subtraction
-      return sum + asset.amount;
-    }, 0);
+    if (retainedEarningsAcc) {
+      // Jika akunnya ada, tambahkan Laba Bersih langsung ke saldo akun tersebut
+      retainedEarningsAcc.amount += netIncome;
+    } else {
+      // Fallback: Jika user menghapus akun Laba Ditahan, sistem tetap menyeimbangkan Neraca
+      rawEquity.push({
+        account_id: 'virtual-retained-earnings',
+        account_code: '3200',
+        account_name: 'Laba Ditahan (Virtual)',
+        amount: netIncome,
+      });
+    }
+
+    // Filter akun ekuitas yang saldonya 0 (setelah injeksi selesai)
+    const equity = rawEquity.filter((r) => r.amount !== 0);
+
+    const totalAssets = assets.reduce((sum, a) => sum + a.amount, 0);
     const totalLiabilities = liabilities.reduce((s, r) => s + r.amount, 0);
-    const totalEquity = totalBaseEquity + netIncome; // includes retained earnings
+    const totalEquity = equity.reduce((sum, e) => sum + e.amount, 0);
 
     return {
       assets,
       liabilities,
       equity,
-      netIncome,
+      netIncome, 
       totalAssets,
       totalLiabilities,
-      totalBaseEquity,
+      totalBaseEquity: totalEquity - netIncome, // Hanya untuk referensi
       totalEquity,
       totalLiabilitiesAndEquity: totalLiabilities + totalEquity,
     };
   }
 
-  // ── 6. Dashboard Summary ────────────────────────────────────────────────────
+  // ── 6. Statement of Changes in Equity ──────────────────────────────────────
 
-  /**
-   * Returns the key KPI numbers for the Dashboard Bento cards.
-   * Combines balance sheet totals and income statement totals.
-   */
+  private async getCumulativeEquityUpToEnd(
+    companyId: string,
+    endDateStr?: string,
+  ): Promise<number> {
+    const aggregates = await this.loadAccountAggregates(companyId, undefined, endDateStr);
+    const { netIncome } = await this.getIncomeStatement(companyId, undefined, endDateStr);
+
+    const totalBaseEquity = aggregates
+      .filter((a) => a.category === Category.Equity)
+      .reduce((sum, acc) => {
+        const adjTb = this.toTrialBalanceCols(
+          acc.journalDebit + acc.adjustingDebit,
+          acc.journalCredit + acc.adjustingCredit,
+        );
+        const amount =
+          acc.normal_balance === NormalBalance.Credit
+            ? adjTb.credit_balance - adjTb.debit_balance
+            : -(adjTb.debit_balance - adjTb.credit_balance);
+        return sum + amount;
+      }, 0);
+
+    return totalBaseEquity + netIncome;
+  }
+
+  private async getCumulativeEquityStrictlyBefore(
+    companyId: string,
+    startDate: string,
+  ): Promise<number> {
+    const aggregates = await this.loadAccountAggregates(
+      companyId,
+      startDate,
+      undefined,
+      true,
+    );
+    const { netIncome } = await this.getIncomeStatement(
+      companyId,
+      startDate,
+      undefined,
+      true,
+    );
+
+    const totalBaseEquity = aggregates
+      .filter((a) => a.category === Category.Equity)
+      .reduce((sum, acc) => {
+        const adjTb = this.toTrialBalanceCols(
+          acc.journalDebit + acc.adjustingDebit,
+          acc.journalCredit + acc.adjustingCredit,
+        );
+        const amount =
+          acc.normal_balance === NormalBalance.Credit
+            ? adjTb.credit_balance - adjTb.debit_balance
+            : -(adjTb.debit_balance - adjTb.credit_balance);
+        return sum + amount;
+      }, 0);
+
+    return totalBaseEquity + netIncome;
+  }
+
+  private async getOwnerContributionsDuringPeriod(
+    companyId: string,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<number> {
+    const periodAggregates = await this.loadAccountAggregates(companyId, startDate, endDate);
+    return periodAggregates
+      .filter((a) => a.category === Category.Equity && !this.isDrawingAccount(a))
+      .reduce((sum, acc) => {
+        const netCredit =
+          (acc.journalCredit + acc.adjustingCredit) -
+          (acc.journalDebit + acc.adjustingDebit);
+          
+        // BUG FIX: Hapus Math.max(0, netCredit) agar koreksi/debit 
+        // pada akun ekuitas tetap terhitung secara akurat.
+        return sum + netCredit; 
+      }, 0);
+  }
+
+  private async getOwnerDrawingsDuringPeriod(
+    companyId: string,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<number> {
+    const periodAggregates = await this.loadAccountAggregates(companyId, startDate, endDate);
+    return periodAggregates
+      .filter((a) => this.isDrawingAccount(a))
+      .reduce((sum, acc) => {
+        const adjTb = this.toTrialBalanceCols(
+          acc.journalDebit + acc.adjustingDebit,
+          acc.journalCredit + acc.adjustingCredit,
+        );
+        return sum + (adjTb.debit_balance - adjTb.credit_balance);
+      }, 0);
+  }
+
+  // ── Statement of Changes in Equity (FIXED & RECONCILING) ───────────────────
+  async getStatementOfEquity(
+    companyId: string,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    const initialCapital = startDate
+      ? await this.getCumulativeEquityStrictlyBefore(companyId, startDate)
+      : 0;
+
+    const finalCapital = await this.getCumulativeEquityUpToEnd(companyId, endDate);
+
+    const { netIncome } = await this.getIncomeStatement(companyId, startDate, endDate);
+
+    const ownerContributions = await this.getOwnerContributionsDuringPeriod(
+      companyId,
+      startDate,
+      endDate,
+    );
+
+    const prive = await this.getOwnerDrawingsDuringPeriod(companyId, startDate, endDate);
+
+    const calculatedEnding = initialCapital + ownerContributions + netIncome - prive;
+
+    // Reconciliation guard (critical for auditability)
+    const discrepancy = Math.abs(calculatedEnding - finalCapital);
+    if (discrepancy > 0.01) {
+      // Log warning or throw in strict mode; for now return both for transparency
+      console.warn(`Equity reconciliation discrepancy: ${discrepancy}`);
+    }
+
+    return {
+      initialCapital,
+      ownerContributions,
+      netIncome,
+      prive,
+      capitalChange: ownerContributions + netIncome - prive,
+      finalCapital,
+      calculatedEnding, // for debugging
+      discrepancy: discrepancy > 0.01 ? discrepancy : 0,
+    };
+  }
+
+  // ── 7. Dashboard Summary ────────────────────────────────────────────────────
+
   async getDashboardSummary(companyId: string) {
     const [bs, is] = await Promise.all([
       this.getBalanceSheet(companyId),

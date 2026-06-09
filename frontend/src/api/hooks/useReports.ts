@@ -149,6 +149,28 @@ export function useBalanceSheet(options?: ReportOptions) {
   });
 }
 
+export interface StatementOfEquity {
+  initialCapital: number;
+  ownerContributions: number;
+  netIncome: number;
+  prive: number;
+  capitalChange: number;
+  finalCapital: number;
+}
+
+export function useStatementOfEquity(options?: ReportOptions) {
+  const activeCompanyId = useAuthStore((s) => s.activeCompanyId);
+  return useQuery<StatementOfEquity>({
+    queryKey: ['reports', 'statement-of-equity', activeCompanyId, options?.startDate, options?.endDate],
+    queryFn: async () => {
+      const url = buildQueryString('/reports/statement-of-equity', { ...options });
+      const res = await api.get(url);
+      return res.data;
+    },
+    enabled: !!activeCompanyId,
+  });
+}
+
 export interface DashboardSummary {
   totalAssets: number;
   totalLiabilities: number;

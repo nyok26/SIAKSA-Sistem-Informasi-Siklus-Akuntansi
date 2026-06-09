@@ -68,6 +68,7 @@ export function AppLayout() {
         { to: '/worksheet', icon: FileSpreadsheet, label: 'Worksheet' },
         { to: '/income-statement', icon: PieChart, label: 'Income Statement' },
         { to: '/balance-sheet', icon: BookOpenCheck, label: 'Balance Sheet' },
+        { to: '/statement-of-equity', icon: FileSpreadsheet, label: 'Statement of Equity' },
       ],
     },
     {
