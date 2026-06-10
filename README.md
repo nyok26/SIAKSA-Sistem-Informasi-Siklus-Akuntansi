@@ -5,13 +5,14 @@ SIAKSA adalah platform akuntansi berbasis web yang mendigitalisasi siklus akunta
 ---
 
 ## 📋 Daftar Isi
+
 1. [Fitur Utama](#-fitur-utama)
 2. [Spesifikasi Teknis (Tech Stack)](#-spesifikasi-teknis-tech-stack)
-3. [Arsitektur & Alur Data Frontend](#-arsitektur--alur-data-frontend)
-4. [Arsitektur Data & Database Backend](#-arsitektur-data--database-backend)
+3. [Arsitektur &amp; Alur Data Frontend](#-arsitektur--alur-data-frontend)
+4. [Arsitektur Data &amp; Database Backend](#-arsitektur-data--database-backend)
 5. [Dokumentasi API (Kontrak Data)](#-dokumentasi-api-kontrak-data)
-6. [Logika Bisnis & Perhitungan Laporan](#-logika-bisnis--perhitungan-laporan)
-7. [Panduan Instalasi & Pengaturan](#-panduan-instalasi--pengaturan)
+6. [Logika Bisnis &amp; Perhitungan Laporan](#-logika-bisnis--perhitungan-laporan)
+7. [Panduan Instalasi &amp; Pengaturan](#-panduan-instalasi--pengaturan)
 
 ---
 
@@ -28,6 +29,7 @@ SIAKSA adalah platform akuntansi berbasis web yang mendigitalisasi siklus akunta
 ## 🛠️ Spesifikasi Teknis (Tech Stack)
 
 ### Frontend (Modern React Ecosystem)
+
 - **Framework**: React v18 + Vite (Ultra-fast development).
 - **State Management**: Zustand (Global state dengan persistensi ke localStorage).
 - **Data Fetching**: TanStack Query v5 (Caching, synchronization, & background updates).
@@ -36,6 +38,7 @@ SIAKSA adalah platform akuntansi berbasis web yang mendigitalisasi siklus akunta
 - **Integrasi API**: Axios dengan interceptors otomatis.
 
 ### Backend (Node.js/NestJS)
+
 - **Framework**: NestJS v10 (Robust, modular, & scalable).
 - **ORM**: Prisma v5 (Type-safe database client).
 - **Database**: PostgreSQL v15 (Relational storage).
@@ -48,28 +51,36 @@ SIAKSA adalah platform akuntansi berbasis web yang mendigitalisasi siklus akunta
 Frontend SIAKSA dirancang dengan pola **Hook-based Data Fetching** untuk memisahkan logika data dari UI.
 
 ### 1. Manajemen State Global (Zustand)
+
 Lokasi: `src/store/authStore.ts`
 Menyimpan state kritis yang bertahan meskipun halaman di-refresh:
+
 - `user`: Data profil pengguna aktif.
 - `token`: JWT untuk otorisasi API.
 - `activeCompanyId`: UUID perusahaan yang sedang dikelola (kunci multi-tenancy).
 
 ### 2. Integrasi API Otomatis
+
 Lokasi: `src/api/axios.ts`
 Axios dikonfigurasi dengan interceptor untuk menyisipkan header pada setiap permintaan:
+
 ```javascript
 // Header yang disisipkan otomatis:
 Authorization: Bearer <token>
 x-company-id: <activeCompanyId>
 ```
+
 *Jika API mengembalikan status 401 (Expired), sistem akan otomatis melakukan logout dan mengarahkan ke halaman login.*
 
 ### 3. Pola Pengambilan Data (React Query)
-Setiap modul memiliki custom hooks di `src/api/hooks/` (contoh: `useAccounts`, `useJournals`, `useReports`). 
+
+Setiap modul memiliki custom hooks di `src/api/hooks/` (contoh: `useAccounts`, `useJournals`, `useReports`).
+
 - **Caching**: Data laporan tidak di-fetch ulang jika sudah ada di cache, kecuali terjadi mutasi data.
 - **Optimistic Updates**: Digunakan pada beberapa modul untuk memberikan UI yang instan.
 
 ### 4. Sistem Laporan & Ekspor
+
 - **Print View**: Menggunakan `print.css` untuk menyembunyikan navigasi dan elemen UI yang tidak perlu saat pengguna menekan `Ctrl+P`.
 - **Excel Export**: Menggunakan library `xlsx` untuk mengonversi data JSON dari API langsung menjadi file `.xlsx` yang siap pakai.
 
@@ -78,6 +89,7 @@ Setiap modul memiliki custom hooks di `src/api/hooks/` (contoh: `useAccounts`, `
 ## 🗄️ Arsitektur Data & Database Backend
 
 ### Model Utama (Prisma)
+
 - **User**: Menyimpan data kredensial dan relasi ke perusahaan.
 - **Company**: Entitas bisnis utama. Semua transaksi keuangan terikat ke ID perusahaan ini.
 - **Account (COA)**: Master data akun (Assets, Liabilities, dll).
@@ -88,16 +100,21 @@ Setiap modul memiliki custom hooks di `src/api/hooks/` (contoh: `useAccounts`, `
 ## 🔌 Dokumentasi API (Kontrak Data)
 
 ### 1. Autentikasi (`/api/auth`)
+
 - `POST /register`: Pendaftaran pengguna baru.
 - `POST /login`: Mendapatkan token akses.
 
 ### 2. Manajemen Akun (`/api/accounts`)
+
 Setiap akun harus memiliki `account_code` yang unik per perusahaan dan diawali dengan prefix kategori (1-5).
 **Struktur Akun:**
+
 - `1xxx`: Assets (Normal: Debit) | `2xxx`: Liabilities (Normal: Credit) | `3xxx`: Equity (Normal: Credit)
 
 ### 3. Jurnal & Transaksi (`/api/journals`)
+
 **Payload Jurnal:**
+
 ```json
 {
   "date": "YYYY-MM-DD",
@@ -122,14 +139,17 @@ Setiap akun harus memiliki `account_code` yang unik per perusahaan dan diawali d
 ## 🏁 Panduan Instalasi & Pengaturan
 
 ### Pengaturan Backend
+
 ```bash
 cd backend && npm install
 # Konfigurasi .env (DATABASE_URL, JWT_SECRET)
 npx prisma migrate dev
+npm install nest
 npm run start:dev
 ```
 
 ### Pengaturan Frontend
+
 ```bash
 cd frontend && npm install
 # Konfigurasi .env (VITE_API_BASE_URL)
@@ -137,4 +157,5 @@ npm run dev
 ```
 
 ---
+
 *Dibuat dengan standar profesional untuk Sistem Informasi Akuntansi yang handal.*

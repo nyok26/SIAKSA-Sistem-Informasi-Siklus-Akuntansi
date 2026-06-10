@@ -5,9 +5,16 @@ import { useAccounts } from '@/api/hooks/useAccounts';
 import { useActiveCompany } from '@/api/hooks/useCompanies';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, printReport } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { PrintReportButton } from '@/components/reports/PrintReportButton';
+import { Download, FileText } from 'lucide-react';
+import { downloadLedgerExcel } from '@/lib/exportLedgerExcel';
+import { ReportAccountingHeader } from '@/components/reports/ReportAccountingHeader';
+import { formatAccountingReportPeriod, reportPeriodLocaleFromCurrency } from '@/lib/reportPeriodLabel';
+import { useMemo } from 'react';
+import { toast } from 'sonner';
 
 export function LedgerPage() {
   const [selectedAccount, setSelectedAccount] = useState<string>('all');
@@ -17,6 +24,40 @@ export function LedgerPage() {
   const { data: accounts } = useAccounts();
   const { data: ledgerData, isLoading } = useLedger(selectedAccount === 'all' ? undefined : selectedAccount, dateRange);
 
+  const periodLocale = reportPeriodLocaleFromCurrency(activeCompany?.currency);
+  const periodLabel = useMemo(
+    () => formatAccountingReportPeriod(dateRange, periodLocale),
+    [dateRange, periodLocale],
+  );
+
+  const handleDownloadExcel = () => {
+    if (!ledgerData?.length) {
+      toast.error('No data to export');
+      return;
+    }
+
+    downloadLedgerExcel({
+      companyName: activeCompany?.name ?? '',
+      reportTitle: 'General Ledger',
+      periodLabel,
+      accounts: ledgerData.map((acc) => ({
+        account_code: acc.account_code,
+        account_name: acc.account_name,
+        normal_balance: acc.normal_balance,
+        transactions: acc.transactions.map((t) => ({
+          date: formatDate(t.date),
+          description: t.description,
+          source: t.source,
+          debit: t.debit,
+          credit: t.credit,
+          balance: t.balance,
+        })),
+      })),
+      fileBaseName: `GeneralLedger_${periodLabel.replace(/\s+/g, '_')}`,
+    });
+    toast.success('Excel file downloaded');
+  };
+
   return (
     <div className="animate-fade-in space-y-6">
       <div className="no-print flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -24,9 +65,31 @@ export function LedgerPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">General Ledger</h1>
           <p className="text-muted-foreground mt-1">Detailed transaction history by account.</p>
         </div>
-        <div className="flex flex-col sm:flex-row items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-center gap-3">
           <DateFilter onChange={setDateRange} />
           <PrintReportButton disabled={isLoading || !ledgerData?.length} />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-2 rounded-xl border-border/50 bg-white shadow-sm"
+            disabled={isLoading || !ledgerData?.length}
+            onClick={() => printReport()}
+          >
+            <FileText className="h-4 w-4" />
+            PDF
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-2 rounded-xl border-border/50 bg-white shadow-sm"
+            disabled={isLoading || !ledgerData?.length}
+            onClick={handleDownloadExcel}
+          >
+            <Download className="h-4 w-4" />
+            Excel
+          </Button>
           <div className="w-64">
             <Select value={selectedAccount} onValueChange={setSelectedAccount}>
               <SelectTrigger className="bg-white border-border/50 shadow-sm rounded-xl">
@@ -46,6 +109,13 @@ export function LedgerPage() {
       </div>
 
       <div className="space-y-8">
+        <div className="soft-card overflow-hidden border border-border/40">
+          <ReportAccountingHeader
+            companyName={activeCompany?.name ?? ''}
+            reportTitle="General Ledger"
+            periodLabel={periodLabel}
+          />
+        </div>
         {isLoading ? (
           <div className="no-print p-8 text-center text-muted-foreground soft-card">Loading ledger data...</div>
         ) : ledgerData?.length === 0 ? (

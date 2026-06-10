@@ -6,9 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFoo
 import { useActiveCompany } from '@/api/hooks/useCompanies';
 import { formatAccountingReportPeriod, reportPeriodLocaleFromCurrency } from '@/lib/reportPeriodLabel';
 import { downloadTrialBalanceExcel } from '@/lib/exportTrialBalanceExcel';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, printReport } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Check, Download } from 'lucide-react';
+import { Check, Download, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { PrintReportButton } from '@/components/reports/PrintReportButton';
 
@@ -58,9 +58,20 @@ export function TrialBalancePage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Trial Balance</h1>
           <p className="text-muted-foreground mt-1">Verify that total debits equal total credits.</p>
         </div>
-        <div className="flex flex-col sm:flex-row items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-center gap-3">
           <DateFilter onChange={setDateRange} />
           <PrintReportButton disabled={!data?.rows.length} />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-2 rounded-xl border-border/50 bg-white shadow-sm"
+            disabled={!data?.rows.length}
+            onClick={() => printReport()}
+          >
+            <FileText className="h-4 w-4" />
+            PDF
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -70,7 +81,7 @@ export function TrialBalancePage() {
             onClick={handleDownloadExcel}
           >
             <Download className="h-4 w-4" />
-            Download Excel
+            Excel
           </Button>
           <div className="flex bg-slate-100 p-1 rounded-xl border border-border/50 shadow-sm">
             <Button

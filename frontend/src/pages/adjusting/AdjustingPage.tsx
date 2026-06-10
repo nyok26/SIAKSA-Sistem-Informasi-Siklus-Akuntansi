@@ -1,16 +1,20 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAdjustingEntries, useCreateAdjustingEntry, useDeleteAdjustingEntry } from '@/api/hooks/useAdjusting';
 import { useAccounts } from '@/api/hooks/useAccounts';
 import { useActiveCompany } from '@/api/hooks/useCompanies';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2, AlertCircle } from 'lucide-react';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { Plus, Trash2, AlertCircle, Download, FileText } from 'lucide-react';
+import { formatCurrency, formatDate, printReport } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { PrintReportButton } from '@/components/reports/PrintReportButton';
+import { ReportAccountingHeader } from '@/components/reports/ReportAccountingHeader';
+import { downloadJournalExcel } from '@/lib/exportJournalExcel';
+import { toast } from 'sonner';
 import React from 'react';
 
 const MONTHS = [
@@ -85,105 +89,179 @@ export function AdjustingPage() {
     );
   };
 
+  const journalListTotals = useMemo(() => {
+    if (!entries?.length) return { debit: 0, credit: 0 };
+    return entries.reduce(
+      (sums, entry) => {
+        for (const d of entry.details) {
+          sums.debit += Number(d.debit) || 0;
+          sums.credit += Number(d.credit) || 0;
+        }
+        return sums;
+      },
+      { debit: 0, credit: 0 },
+    );
+  }, [entries]);
+
+  const handleDownloadExcel = () => {
+    if (!entries?.length) {
+      toast.error('No data to export');
+      return;
+    }
+
+    const periodLabel = `${MONTHS.find((m) => m.value === month)?.label} ${year}`;
+    const rows = entries.flatMap((entry) =>
+      entry.details.map((d) => ({
+        date: formatDate(entry.date),
+        account_code: d.account?.account_code || '',
+        account_name: d.account?.account_name || '',
+        description: entry.description || '',
+        debit: d.debit,
+        credit: d.credit,
+      }))
+    );
+
+    downloadJournalExcel({
+      companyName: activeCompany?.name ?? '',
+      reportTitle: 'Adjusting Entries',
+      periodLabel,
+      rows,
+      totalDebit: journalListTotals.debit,
+      totalCredit: journalListTotals.credit,
+      fileBaseName: `AdjustingEntries_${year}_${month}`,
+    });
+    toast.success('Excel file downloaded');
+  };
+
   return (
     <div className="animate-fade-in space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="no-print flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Adjusting Entries</h1>
           <p className="text-muted-foreground mt-1">Record period-end adjustments.</p>
         </div>
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2"><Plus className="w-4 h-4" /> New Adjustment</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create Adjusting Entry</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-6 pt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Date</Label>
-                  <Input type="date" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} required />
+        <div className="flex items-center gap-3">
+          <PrintReportButton disabled={!entries?.length} />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-2 rounded-xl border-border/50 bg-white shadow-sm"
+            disabled={!entries?.length}
+            onClick={() => printReport()}
+          >
+            <FileText className="h-4 w-4" />
+            PDF
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-2 rounded-xl border-border/50 bg-white shadow-sm"
+            disabled={!entries?.length}
+            onClick={handleDownloadExcel}
+          >
+            <Download className="h-4 w-4" />
+            Excel
+          </Button>
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2"><Plus className="w-4 h-4" /> New Adjustment</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Create Adjusting Entry</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-6 pt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Date</Label>
+                    <Input type="date" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Description</Label>
+                    <Input value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Adjustment reason" required />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Description</Label>
-                  <Input value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Adjustment reason" required />
-                </div>
-              </div>
 
-              <div className="border rounded-md p-4 space-y-4 bg-secondary/10">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium">Line Items</h4>
-                  <Button type="button" variant="outline" size="sm" onClick={addRow} className="gap-1"><Plus className="w-3 h-3" /> Add Row</Button>
-                </div>
-                {details.map((d, idx) => (
-                  <div key={idx} className="flex items-end gap-3">
-                    <div className="flex-1 space-y-1">
-                      <Label className="text-xs text-slate-600">Account</Label>
-                      <Select value={d.account_id} onValueChange={(v) => updateDetail(idx, 'account_id', v)}>
-                        <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
-                        <SelectContent>
-                          {accounts?.map(acc => (
-                            <SelectItem key={acc.id} value={acc.id}>{acc.account_code} - {acc.account_name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {/* Debit — disabled when credit > 0 */}
-                    <div className="w-32 space-y-1">
-                      <Label className={`text-xs font-semibold ${ d.credit > 0 ? 'text-slate-400' : 'text-emerald-700' }`}>
-                        Debit {d.credit > 0 && <span className="font-normal">(locked)</span>}
-                      </Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={d.debit || ''}
-                        onChange={(e) => updateDetail(idx, 'debit', e.target.value)}
-                        disabled={d.credit > 0}
-                        className={d.credit > 0 ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white focus:ring-emerald-300'}
-                        placeholder="0"
-                      />
-                    </div>
-                    {/* Credit — disabled when debit > 0 */}
-                    <div className="w-32 space-y-1">
-                      <Label className={`text-xs font-semibold ${ d.debit > 0 ? 'text-slate-400' : 'text-rose-700' }`}>
-                        Credit {d.debit > 0 && <span className="font-normal">(locked)</span>}
-                      </Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={d.credit || ''}
-                        onChange={(e) => updateDetail(idx, 'credit', e.target.value)}
-                        disabled={d.debit > 0}
-                        className={d.debit > 0 ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white focus:ring-rose-300'}
-                        placeholder="0"
-                      />
-                    </div>
-                    <Button type="button" variant="ghost" size="icon" onClick={() => removeRow(idx)} disabled={details.length <= 2} className="shrink-0 text-destructive mb-[1px]">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                <div className="border rounded-md p-4 space-y-4 bg-secondary/10">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Line Items</h4>
+                    <Button type="button" variant="outline" size="sm" onClick={addRow} className="gap-1"><Plus className="w-3 h-3" /> Add Row</Button>
                   </div>
-                ))}
-                
-                <div className="flex justify-end gap-6 pt-4 border-t border-border mt-4">
-                  <div className="text-sm"><span className="text-muted-foreground mr-2">Total Debit:</span><span className="font-mono font-medium">{formatCurrency(totalDebit, currency)}</span></div>
-                  <div className="text-sm"><span className="text-muted-foreground mr-2">Total Credit:</span><span className="font-mono font-medium">{formatCurrency(totalCredit, currency)}</span></div>
-                </div>
-                {!isBalanced && (
-                  <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-2 rounded">
-                    <AlertCircle className="w-4 h-4" /> Totals must balance and be greater than 0 to submit.
+                  {details.map((d, idx) => (
+                    <div key={idx} className="flex items-end gap-3">
+                      <div className="flex-1 space-y-1">
+                        <Label className="text-xs text-slate-600">Account</Label>
+                        <Select value={d.account_id} onValueChange={(v) => updateDetail(idx, 'account_id', v)}>
+                          <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
+                          <SelectContent>
+                            {accounts?.map(acc => (
+                              <SelectItem key={acc.id} value={acc.id}>{acc.account_code} - {acc.account_name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {/* Debit — disabled when credit > 0 */}
+                      <div className="w-32 space-y-1">
+                        <Label className={`text-xs font-semibold ${ d.credit > 0 ? 'text-slate-400' : 'text-emerald-700' }`}>
+                          Debit {d.credit > 0 && <span className="font-normal">(locked)</span>}
+                        </Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={d.debit || ''}
+                          onChange={(e) => updateDetail(idx, 'debit', e.target.value)}
+                          disabled={d.credit > 0}
+                          className={d.credit > 0 ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white focus:ring-emerald-300'}
+                          placeholder="0"
+                        />
+                      </div>
+                      {/* Credit — disabled when debit > 0 */}
+                      <div className="w-32 space-y-1">
+                        <Label className={`text-xs font-semibold ${ d.debit > 0 ? 'text-slate-400' : 'text-rose-700' }`}>
+                          Credit {d.debit > 0 && <span className="font-normal">(locked)</span>}
+                        </Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={d.credit || ''}
+                          onChange={(e) => updateDetail(idx, 'credit', e.target.value)}
+                          disabled={d.debit > 0}
+                          className={d.debit > 0 ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white focus:ring-rose-300'}
+                          placeholder="0"
+                        />
+                      </div>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => removeRow(idx)} disabled={details.length <= 2} className="shrink-0 text-destructive mb-[1px]">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  
+                  <div className="flex justify-end gap-6 pt-4 border-t border-border mt-4">
+                    <div className="text-sm"><span className="text-muted-foreground mr-2">Total Debit:</span><span className="font-mono font-medium">{formatCurrency(totalDebit, currency)}</span></div>
+                    <div className="text-sm"><span className="text-muted-foreground mr-2">Total Credit:</span><span className="font-mono font-medium">{formatCurrency(totalCredit, currency)}</span></div>
                   </div>
-                )}
-              </div>
-              <Button type="submit" className="w-full" disabled={!isBalanced || isPending}>Save Adjusting Entry</Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+                  {!isBalanced && (
+                    <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-2 rounded">
+                      <AlertCircle className="w-4 h-4" /> Totals must balance and be greater than 0 to submit.
+                    </div>
+                  )}
+                </div>
+                <Button type="submit" className="w-full" disabled={!isBalanced || isPending}>Save Adjusting Entry</Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      <div className="soft-card shadow-sm overflow-hidden border border-border/40">
-        <div className="p-4 border-b border-border/40 flex justify-between items-center bg-slate-50/50">
+      <div className="print-report-root soft-card shadow-sm overflow-hidden border border-border/40">
+        <ReportAccountingHeader
+          companyName={activeCompany?.name ?? ''}
+          reportTitle="Adjusting Entries"
+          periodLabel={`${MONTHS.find((m) => m.value === month)?.label} ${year}`}
+        />
+        <div className="no-print p-4 border-b border-border/40 flex justify-between items-center bg-slate-50/50">
           <div className="flex items-center gap-4">
             <Label className="text-sm font-bold text-slate-500 uppercase tracking-widest">
               Filter Period:
@@ -270,6 +348,22 @@ export function AdjustingPage() {
               ))
             )}
           </TableBody>
+          {!isLoading && entries && entries.length > 0 && (
+            <TableFooter>
+              <TableRow className="hover:bg-transparent border-t-2 border-border/60 bg-slate-100/90">
+                <TableCell colSpan={3} className="pl-6 py-3 font-semibold text-slate-800">
+                  Total
+                </TableCell>
+                <TableCell className="text-right font-mono py-3 font-semibold text-slate-900">
+                  {formatCurrency(journalListTotals.debit, currency)}
+                </TableCell>
+                <TableCell className="text-right font-mono py-3 pr-6 font-semibold text-slate-900">
+                  {formatCurrency(journalListTotals.credit, currency)}
+                </TableCell>
+                <TableCell className="py-3" />
+              </TableRow>
+            </TableFooter>
+          )}
         </Table>
       </div>
 

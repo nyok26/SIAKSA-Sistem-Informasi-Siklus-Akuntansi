@@ -5,8 +5,12 @@ import { ReportAccountingHeader } from '@/components/reports/ReportAccountingHea
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { useActiveCompany } from '@/api/hooks/useCompanies';
 import { formatAccountingReportPeriod, reportPeriodLocaleFromCurrency } from '@/lib/reportPeriodLabel';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, printReport } from '@/lib/utils';
 import { PrintReportButton } from '@/components/reports/PrintReportButton';
+import { Download, FileText } from 'lucide-react';
+import { downloadWorksheetExcel } from '@/lib/exportWorksheetExcel';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 
 export function WorksheetPage() {
   const [dateRange, setDateRange] = useState<DateRange>({});
@@ -22,6 +26,24 @@ export function WorksheetPage() {
 
   const formatCell = (val: number) => val === 0 ? '-' : formatCurrency(val, currency);
 
+  const handleDownloadExcel = () => {
+    if (!data?.rows.length) {
+      toast.error('No data to export');
+      return;
+    }
+
+    downloadWorksheetExcel({
+      companyName: activeCompany?.name ?? '',
+      reportTitle: '10-Column Worksheet',
+      periodLabel,
+      rows: data.rows,
+      totals: data.totals,
+      netIncome: data.net_income,
+      fileBaseName: `Worksheet_${periodLabel.replace(/\s+/g, '_')}`,
+    });
+    toast.success('Excel file downloaded');
+  };
+
   return (
     <div className="animate-fade-in space-y-6 flex flex-col h-full">
       <div className="no-print flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -31,7 +53,29 @@ export function WorksheetPage() {
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <DateFilter onChange={setDateRange} />
-          <PrintReportButton disabled={isLoading} />
+          <PrintReportButton disabled={isLoading || !data?.rows.length} />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-2 rounded-xl border-border/50 bg-white shadow-sm"
+            disabled={isLoading || !data?.rows.length}
+            onClick={() => printReport()}
+          >
+            <FileText className="h-4 w-4" />
+            PDF
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-2 rounded-xl border-border/50 bg-white shadow-sm"
+            disabled={isLoading || !data?.rows.length}
+            onClick={handleDownloadExcel}
+          >
+            <Download className="h-4 w-4" />
+            Excel
+          </Button>
         </div>
       </div>
 

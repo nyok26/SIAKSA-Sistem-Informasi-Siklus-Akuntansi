@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Printer } from 'lucide-react';
+import { printReport } from '@/lib/utils';
 
 interface PrintReportButtonProps {
   disabled?: boolean;
@@ -14,7 +15,7 @@ export function PrintReportButton({ disabled }: PrintReportButtonProps) {
       size="sm"
       className="gap-2 rounded-xl border-border/50 bg-white shadow-sm"
       disabled={disabled}
-      onClick={() => window.print()}
+      onClick={() => printReport()}
     >
       <Printer className="h-4 w-4" />
       Print
