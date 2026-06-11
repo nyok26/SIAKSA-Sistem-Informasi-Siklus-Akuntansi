@@ -1,4 +1,5 @@
 import useSWR from 'swr';
+import { useAuthStore } from '../../store/authStore';
 import api from '../axios';
 
 export interface Company {
@@ -40,11 +41,9 @@ export function useCompanies() {
   };
 }
 
-import { useAuthStore } from '../../store/authStore';
-
 export function useActiveCompany() {
-  const { activeCompanyId } = useAuthStore();
+  const activeCompanyId = useAuthStore((state) => state.activeCompanyId);
   const { companies, isLoading } = useCompanies();
-  const activeCompany = companies.find(c => c.id === activeCompanyId);
+  const activeCompany = companies.find((c) => c.id === activeCompanyId);
   return { activeCompany, isLoading };
 }
