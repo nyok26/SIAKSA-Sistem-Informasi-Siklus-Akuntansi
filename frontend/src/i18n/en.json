@@ -1,0 +1,58 @@
+{
+  "app": {
+    "title": "Sistem Informasi Siklus Akuntansi"
+  },
+  "login": {
+    "welcomeBack": "Welcome back",
+    "signInPrompt": "Sign in to your account to continue",
+    "email": "Email address",
+    "emailPlaceholder": "you@example.com",
+    "password": "Password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "signIn": "Sign in",
+    "creatingAccount": "Create one"
+  },
+  "layout": {
+    "company": "Company",
+    "selectCompany": "Select a company",
+    "loggedInAs": "Logged in as",
+    "logout": "Logout",
+    "createCompany": "Create Company",
+    "createCompanyDescription": "Add a new company to manage its accounting data.",
+    "companyName": "Company Name",
+    "currency": "Currency",
+    "selectCurrency": "Select Currency",
+    "idPlaceholder": "e.g. PT Sejahtera"
+  },
+  "nav": {
+    "main": "Main",
+    "reports": "Reports",
+    "settings": "Settings",
+    "dashboard": "Dashboard",
+    "chartOfAccounts": "Chart of Accounts",
+    "generalJournal": "General Journal",
+    "adjustingEntries": "Adjusting Entries",
+    "generalLedger": "General Ledger",
+    "trialBalance": "Trial Balance",
+    "worksheet": "Worksheet",
+    "incomeStatement": "Income Statement",
+    "balanceSheet": "Balance Sheet",
+    "statementOfEquity": "Statement of Equity",
+    "companyConfig": "Company Config"
+  },
+  "settings": {
+    "companySettings": "Company Settings",
+    "generalInformation": "General Information",
+    "companyName": "Company Name",
+    "createdOn": "Created On",
+    "saveChanges": "Save Changes",
+    "deleteCompany": "Delete Company",
+    "dangerZone": "Danger Zone"
+  },
+  "language": {
+    "english": "English",
+    "indonesian": "Bahasa Indonesia",
+    "label": "Language"
+  }
+}

@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="frontend/public/logo-original-siaksa.png" width="120" alt="SIAKSA Logo" />
-</p>
-
 <h1 align="center">SIAKSA</h1>
 <p align="center">
   <strong>Sistem Informasi Siklus Akuntansi</strong><br />
@@ -95,26 +91,71 @@ git clone https://github.com/username/SIAKSA-Sistem-Informasi-Siklus-Akuntansi.g
 cd SIAKSA-Sistem-Informasi-Siklus-Akuntansi
 ```
 
-### 2. Konfigurasi Backend
+### 2. Konfigurasi Database dan Backend
+
+#### 2.1. Instal PostgreSQL
+
+1. Unduh PostgreSQL dari https://www.postgresql.org/download/.
+2. path pgAdmin4: C:\Program Files\PostgreSQL\18\bin
+3. Ikuti wizard instalasi dan catat:
+   - nama host: `localhost`
+   - port: `5432`
+   - nama pengguna: `postgres`
+   - kata sandi: (yang Anda buat saat instalasi)
+4. Pastikan `pgAdmin` atau `psql` tersedia setelah instalasi.
+5. psql -U postgres di terminal
+
+#### 2.2. Buat database dan user baru
+
+Gunakan `pgAdmin` atau `psql` untuk membuat database dan user baru. Di `psql`, jalankan:
+
+```sql
+CREATE DATABASE siaksa_db;
+CREATE USER siaksa_user WITH PASSWORD 'StrongPassword123!';
+ALTER ROLE siaksa_user SET client_encoding TO 'utf8';
+ALTER ROLE siaksa_user SET default_transaction_isolation TO 'read committed';
+ALTER ROLE siaksa_user SET timezone TO 'UTC';
+GRANT ALL PRIVILEGES ON DATABASE siaksa_db TO siaksa_user;
+```
+
+Jika ingin menggunakan user `postgres`, Anda bisa melewati pembuatan user baru.
+
+#### 2.3. Konfigurasi backend
 
 ```bash
 cd backend
 npm install
 
 # Buat file .env dari template
+powershell:
 cp .env.example .env
+
+cmd:
+copy .env.example .env
 ```
 
 Edit `.env` dan sesuaikan `DATABASE_URL` serta `JWT_SECRET`.
 
-**Inisialisasi Database:**
+Contoh `DATABASE_URL` untuk PostgreSQL:
+
+```text
+DATABASE_URL="postgresql://siaksa_user:StrongPassword123!@localhost:5432/siaksa_db?schema=public"
+```
+
+Jika Anda tetap menggunakan user `postgres`:
+
+```text
+DATABASE_URL="postgresql://postgres:YourPostgresPassword@localhost:5432/siaksa_db?schema=public"
+```
+
+#### 2.4. Inisialisasi database
 
 ```bash
 npx prisma migrate dev --name init
 npx prisma generate
 ```
 
-**Jalankan Backend:**
+#### 2.5. Jalankan backend
 
 ```bash
 npm run start:dev
@@ -196,4 +237,8 @@ Proyek ini bersifat tertutup (Private). Penggunaan dan distribusi harus mendapat
 
 <p align="center">
   Dibuat oleh Tim Pengembang SIAKSA
+</p><h1 align="center">SIAKSA</h1>
+<p align="center">
+  <strong>Sistem Informasi Siklus Akuntansi</strong><br />
+  <em>Platform Akuntansi Enterprise-Grade untuk Manajemen Siklus Akuntansi Terintegrasi</em>
 </p>

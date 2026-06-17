@@ -1,0 +1,58 @@
+{
+  "app": {
+    "title": "Sistem Informasi Siklus Akuntansi"
+  },
+  "login": {
+    "welcomeBack": "Selamat datang kembali",
+    "signInPrompt": "Masuk ke akun Anda untuk melanjutkan",
+    "email": "Alamat email",
+    "emailPlaceholder": "anda@contoh.com",
+    "password": "Kata sandi",
+    "showPassword": "Tampilkan kata sandi",
+    "hidePassword": "Sembunyikan kata sandi",
+    "signIn": "Masuk",
+    "creatingAccount": "Buat akun"
+  },
+  "layout": {
+    "company": "Perusahaan",
+    "selectCompany": "Pilih perusahaan",
+    "loggedInAs": "Masuk sebagai",
+    "logout": "Keluar",
+    "createCompany": "Buat Perusahaan",
+    "createCompanyDescription": "Tambahkan perusahaan baru untuk mengelola data akuntansinya.",
+    "companyName": "Nama Perusahaan",
+    "currency": "Mata Uang",
+    "selectCurrency": "Pilih Mata Uang",
+    "idPlaceholder": "mis. PT Sejahtera"
+  },
+  "nav": {
+    "main": "Utama",
+    "reports": "Laporan",
+    "settings": "Pengaturan",
+    "dashboard": "Dashboard",
+    "chartOfAccounts": "Daftar Akun",
+    "generalJournal": "Jurnal Umum",
+    "adjustingEntries": "Entri Penyesuaian",
+    "generalLedger": "Buku Besar",
+    "trialBalance": "Neraca Saldo",
+    "worksheet": "Kertas Kerja",
+    "incomeStatement": "Laporan Laba Rugi",
+    "balanceSheet": "Neraca",
+    "statementOfEquity": "Laporan Perubahan Ekuitas",
+    "companyConfig": "Konfigurasi Perusahaan"
+  },
+  "settings": {
+    "companySettings": "Pengaturan Perusahaan",
+    "generalInformation": "Informasi Umum",
+    "companyName": "Nama Perusahaan",
+    "createdOn": "Dibuat Pada",
+    "saveChanges": "Simpan Perubahan",
+    "deleteCompany": "Hapus Perusahaan",
+    "dangerZone": "Zona Berbahaya"
+  },
+  "language": {
+    "english": "English",
+    "indonesian": "Bahasa Indonesia",
+    "label": "Bahasa"
+  }
+}
