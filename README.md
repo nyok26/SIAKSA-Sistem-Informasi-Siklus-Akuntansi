@@ -1,161 +1,199 @@
-# SIAKSA — Sistem Informasi Siklus Akuntansi
+<p align="center">
+  <img src="frontend/public/logo-original-siaksa.png" width="120" alt="SIAKSA Logo" />
+</p>
 
-SIAKSA adalah platform akuntansi berbasis web yang mendigitalisasi siklus akuntansi lengkap secara otomatis. Sistem ini dirancang untuk menangani entitas bisnis ganda (**Multi-Tenancy**), di mana satu akun pengguna dapat mengelola berbagai perusahaan dengan data yang terisolasi sepenuhnya.
+<h1 align="center">SIAKSA</h1>
+<p align="center">
+  <strong>Sistem Informasi Siklus Akuntansi</strong><br />
+  <em>Platform Akuntansi Enterprise-Grade untuk Manajemen Siklus Akuntansi Terintegrasi</em>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Framework-NestJS%2010-E0234E?style=flat-square&logo=nestjs" alt="NestJS" />
+  <img src="https://img.shields.io/badge/Library-React%2018-61DAFB?style=flat-square&logo=react" alt="React" />
+  <img src="https://img.shields.io/badge/Database-PostgreSQL-336791?style=flat-square&logo=postgresql" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/ORM-Prisma-2D3748?style=flat-square&logo=prisma" alt="Prisma" />
+  <img src="https://img.shields.io/badge/Styling-Tailwind%20CSS-38B2AC?style=flat-square&logo=tailwind-css" alt="Tailwind CSS" />
+</p>
 
 ---
 
-## 📋 Daftar Isi
+## 📖 Deskripsi Proyek
 
-1. [Fitur Utama](#-fitur-utama)
-2. [Spesifikasi Teknis (Tech Stack)](#-spesifikasi-teknis-tech-stack)
-3. [Arsitektur &amp; Alur Data Frontend](#-arsitektur--alur-data-frontend)
-4. [Arsitektur Data &amp; Database Backend](#-arsitektur-data--database-backend)
-5. [Dokumentasi API (Kontrak Data)](#-dokumentasi-api-kontrak-data)
-6. [Logika Bisnis &amp; Perhitungan Laporan](#-logika-bisnis--perhitungan-laporan)
-7. [Panduan Instalasi &amp; Pengaturan](#-panduan-instalasi--pengaturan)
+**SIAKSA** (Sistem Informasi Siklus Akuntansi) adalah platform akuntansi berbasis web yang dirancang untuk mendigitalisasi seluruh siklus akuntansi secara otomatis dan akurat. Mulai dari pengelolaan *Chart of Accounts* (COA), pencatatan Jurnal Umum & Penyesuaian, hingga pembuatan laporan keuangan komprehensif.
+
+Sistem ini mengusung arsitektur **Multi-Tenancy**, memungkinkan satu akun pengguna untuk mengelola berbagai entitas bisnis (perusahaan) dengan isolasi data yang sangat ketat dan aman.
 
 ---
 
-## 🚀 Fitur Utama
+## ✨ Fitur Utama
 
-- **Multi-Tenant Architecture**: Isolasi data antar perusahaan menggunakan header `x-company-id`.
-- **Chart of Accounts Dinamis**: Validasi otomatis kode akun berdasarkan kategori standar akuntansi.
-- **Double-Entry Journaling**: Sistem jurnal umum dan penyesuaian dengan validasi keseimbangan debit-kredit.
-- **Real-Time Financial Reporting**: Laporan Buku Besar, Neraca Saldo, Laba Rugi, dan Neraca yang diperbarui secara instan.
-- **Export & Print Ready**: Laporan dapat dicetak langsung (khusus tampilan printer) atau diekspor ke Excel.
+### 🏢 Multi-Tenant & Multi-Company
+
+- **Isolasi Data**: Pemisahan data antar perusahaan yang aman menggunakan konteks `companyId`.
+- **Global Context**: Pengguna dapat berpindah antar perusahaan secara instan tanpa perlu login ulang.
+- **Tenant Security**: Header `x-company-id` wajib digunakan untuk setiap transaksi data yang sensitif terhadap konteks perusahaan.
+
+### 📊 Manajemen Siklus Akuntansi
+
+- **Chart of Accounts (COA)**: Fleksibilitas dalam mendefinisikan akun dengan kategori standar (Aset, Kewajiban, Ekuitas, Pendapatan, Beban).
+- **Double-Entry Journaling**: Validasi otomatis untuk memastikan setiap entri jurnal (Umum & Penyesuaian) selalu dalam keadaan seimbang (Balanced).
+- **Automated Posting**: Transaksi otomatis diposting ke Buku Besar dan diringkas ke dalam Neraca Saldo.
+
+### 📈 Pelaporan Keuangan Otomatis
+
+- **Laporan Laba Rugi**: Perhitungan otomatis profit/loss secara real-time.
+- **Neraca (Balance Sheet)**: Tampilan posisi keuangan yang selalu up-to-date.
+- **Laporan Perubahan Ekuitas**: Pelacakan modal pemilik dan laba ditahan.
+- **Kertas Kerja (Worksheet)**: Visualisasi 10-kolom untuk proses penyesuaian yang transparan.
+
+### 🖨️ Ekspor & Cetak
+
+- **Ekspor Excel**: Dukungan penuh ekspor laporan ke format `.xlsx` menggunakan engine `XLSX`.
+- **Print Optimization**: Tampilan khusus cetak yang bersih dan profesional melalui CSS Media Queries.
 
 ---
 
 ## 🛠️ Spesifikasi Teknis (Tech Stack)
 
-### Frontend (Modern React Ecosystem)
+### Backend (API Server)
 
-- **Framework**: React v18 + Vite (Ultra-fast development).
-- **State Management**: Zustand (Global state dengan persistensi ke localStorage).
-- **Data Fetching**: TanStack Query v5 (Caching, synchronization, & background updates).
-- **UI Components**: Shadcn UI + Tailwind CSS (Accessible & highly customizable).
-- **Routing**: React Router v6 (Protected routes & layout nesting).
-- **Integrasi API**: Axios dengan interceptors otomatis.
+- **Runtime**: Node.js v18+
+- **Framework**: **NestJS v10** (Modular & Scalable)
+- **ORM**: **Prisma v5** (Type-safe access)
+- **Database**: **PostgreSQL**
+- **Authentication**: JWT (JSON Web Token) via Passport.js
+- **Validation**: `class-validator` & `class-transformer`
 
-### Backend (Node.js/NestJS)
+### Frontend (Client Application)
 
-- **Framework**: NestJS v10 (Robust, modular, & scalable).
-- **ORM**: Prisma v5 (Type-safe database client).
-- **Database**: PostgreSQL v15 (Relational storage).
-- **Security**: JWT (Stateless auth) & Bcrypt (Password hashing).
+- **Core**: **React 18** with **TypeScript**
+- **Build Tool**: **Vite** (Optimized build performance)
+- **State Management**:
+  - **Server State**: TanStack Query (React Query) v5
+  - **Local State**: Zustand (Auth & Context Persistence)
+- **UI/UX**:
+  - **Styling**: Tailwind CSS
+  - **Components**: Radix UI + Shadcn/UI
+  - **Animations**: Framer Motion
+- **Forms**: React Hook Form + Zod Validation
 
 ---
 
-## 💻 Arsitektur & Alur Data Frontend
+## 🚀 Panduan Instalasi & Pengaturan
 
-Frontend SIAKSA dirancang dengan pola **Hook-based Data Fetching** untuk memisahkan logika data dari UI.
+### Prasyarat
 
-### 1. Manajemen State Global (Zustand)
+- **Node.js** (versi 18.x atau terbaru)
+- **PostgreSQL** (versi 15 atau terbaru)
+- **npm** atau **yarn**
 
-Lokasi: `src/store/authStore.ts`
-Menyimpan state kritis yang bertahan meskipun halaman di-refresh:
+### 1. Kloning Repositori
 
-- `user`: Data profil pengguna aktif.
-- `token`: JWT untuk otorisasi API.
-- `activeCompanyId`: UUID perusahaan yang sedang dikelola (kunci multi-tenancy).
-
-### 2. Integrasi API Otomatis
-
-Lokasi: `src/api/axios.ts`
-Axios dikonfigurasi dengan interceptor untuk menyisipkan header pada setiap permintaan:
-
-```javascript
-// Header yang disisipkan otomatis:
-Authorization: Bearer <token>
-x-company-id: <activeCompanyId>
+```bash
+git clone https://github.com/username/SIAKSA-Sistem-Informasi-Siklus-Akuntansi.git
+cd SIAKSA-Sistem-Informasi-Siklus-Akuntansi
 ```
 
-*Jika API mengembalikan status 401 (Expired), sistem akan otomatis melakukan logout dan mengarahkan ke halaman login.*
+### 2. Konfigurasi Backend
 
-### 3. Pola Pengambilan Data (React Query)
+```bash
+cd backend
+npm install
 
-Setiap modul memiliki custom hooks di `src/api/hooks/` (contoh: `useAccounts`, `useJournals`, `useReports`).
+# Buat file .env dari template
+cp .env.example .env
+```
 
-- **Caching**: Data laporan tidak di-fetch ulang jika sudah ada di cache, kecuali terjadi mutasi data.
-- **Optimistic Updates**: Digunakan pada beberapa modul untuk memberikan UI yang instan.
+Edit `.env` dan sesuaikan `DATABASE_URL` serta `JWT_SECRET`.
 
-### 4. Sistem Laporan & Ekspor
+**Inisialisasi Database:**
 
-- **Print View**: Menggunakan `print.css` untuk menyembunyikan navigasi dan elemen UI yang tidak perlu saat pengguna menekan `Ctrl+P`.
-- **Excel Export**: Menggunakan library `xlsx` untuk mengonversi data JSON dari API langsung menjadi file `.xlsx` yang siap pakai.
+```bash
+npx prisma migrate dev --name init
+npx prisma generate
+```
+
+**Jalankan Backend:**
+
+```bash
+npm run start:dev
+```
+
+### 3. Konfigurasi Frontend
+
+```bash
+cd ../frontend
+npm install
+
+# Buat file .env dari template
+cp .env.example .env
+```
+
+Sesuaikan `VITE_API_BASE_URL` jika backend berjalan di port yang berbeda.
+
+**Jalankan Frontend:**
+
+```bash
+npm run dev
+```
 
 ---
 
-## 🗄️ Arsitektur Data & Database Backend
+## 📝 Konvensi Kode & Standar Akuntansi
 
-### Model Utama (Prisma)
+### Kategori Akun & Saldo Normal
 
-- **User**: Menyimpan data kredensial dan relasi ke perusahaan.
-- **Company**: Entitas bisnis utama. Semua transaksi keuangan terikat ke ID perusahaan ini.
-- **Account (COA)**: Master data akun (Assets, Liabilities, dll).
-- **JournalEntry & Detail**: Struktur transaksi double-entry.
+| Kode Akun | Kategori                | Saldo Normal |
+| :-------- | :---------------------- | :----------- |
+| `1xxx`  | Assets (Aset)           | Debit        |
+| `2xxx`  | Liabilities (Kewajiban) | Kredit       |
+| `3xxx`  | Equity (Ekuitas)        | Kredit       |
+| `4xxx`  | Revenue (Pendapatan)    | Kredit       |
+| `5xxx`  | Expenses (Beban)        | Debit        |
 
----
+### Struktur Payload Jurnal
 
-## 🔌 Dokumentasi API (Kontrak Data)
-
-### 1. Autentikasi (`/api/auth`)
-
-- `POST /register`: Pendaftaran pengguna baru.
-- `POST /login`: Mendapatkan token akses.
-
-### 2. Manajemen Akun (`/api/accounts`)
-
-Setiap akun harus memiliki `account_code` yang unik per perusahaan dan diawali dengan prefix kategori (1-5).
-**Struktur Akun:**
-
-- `1xxx`: Assets (Normal: Debit) | `2xxx`: Liabilities (Normal: Credit) | `3xxx`: Equity (Normal: Credit)
-
-### 3. Jurnal & Transaksi (`/api/journals`)
-
-**Payload Jurnal:**
+Setiap transaksi harus mematuhi prinsip *Balance*:
 
 ```json
 {
-  "date": "YYYY-MM-DD",
-  "description": "Keterangan transaksi",
+  "date": "2024-01-01",
+  "description": "Pembelian Perlengkapan",
   "details": [
-    { "account_id": "uuid", "debit": 1000, "credit": 0 },
-    { "account_id": "uuid", "debit": 0, "credit": 1000 }
+    { "account_id": "UUID-AKUN-1", "debit": 500000, "credit": 0 },
+    { "account_id": "UUID-AKUN-2", "debit": 0, "credit": 500000 }
   ]
 }
 ```
 
 ---
 
-## 🧠 Logika Bisnis & Perhitungan Laporan
+## 📂 Struktur Folder Utama
 
-1. **Neraca Saldo**: Menjumlahkan seluruh mutasi debit dan kredit per akun untuk menghasilkan saldo akhir.
-2. **Laba Rugi**: Menghitung `Total Pendapatan - Total Beban` pada periode tertentu.
-3. **Neraca**: Menampilkan posisi keuangan seimbang (`Aset = Liabilitas + Ekuitas`). Laba periode berjalan dimasukkan secara otomatis ke dalam komponen Ekuitas.
-
----
-
-## 🏁 Panduan Instalasi & Pengaturan
-
-### Pengaturan Backend
-
-```bash
-cd backend && npm install
-# Konfigurasi .env (DATABASE_URL, JWT_SECRET)
-npx prisma migrate dev
-npm install nest
-npm run start:dev
-```
-
-### Pengaturan Frontend
-
-```bash
-cd frontend && npm install
-# Konfigurasi .env (VITE_API_BASE_URL)
-npm run dev
+```text
+.
+├── backend/                # Source code API NestJS
+│   ├── prisma/             # Schema & Migrasi Database
+│   └── src/                # Business Logic (Modules, Services, Controllers)
+├── frontend/               # Source code React (Vite)
+│   ├── src/
+│   │   ├── api/            # Axios config & Custom Hooks
+│   │   ├── components/     # UI Library (Atomic & Layout)
+│   │   ├── lib/            # Utils & Excel Exporters
+│   │   ├── pages/          # View Components
+│   │   └── store/          # Zustand State
+└── README.md
 ```
 
 ---
 
-*Dibuat dengan standar profesional untuk Sistem Informasi Akuntansi yang handal.*
+## 📄 Lisensi
+
+Proyek ini bersifat tertutup (Private). Penggunaan dan distribusi harus mendapatkan izin tertulis dari pemilik proyek.
+
+---
+
+<p align="center">
+  Dibuat oleh Tim Pengembang SIAKSA
+</p>
