@@ -38,10 +38,5 @@ coverage/
 .cache/
 *.tsbuildinfo
 
-# ─── Claude Code Config ────────────────────────────────────────────────────────────────────
-.claude/
-
-# ─── VSCode ─────────────────────────────────────────────────────────────
-
 # Visual Studio local files
 .vs/
