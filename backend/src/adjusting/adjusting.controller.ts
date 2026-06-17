@@ -1,23 +1,23 @@
 import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  ParseUUIDPipe,
-  Post,
-  Query,
-  UseGuards,
-  Headers,
-  BadRequestException,
+    Body,
+    Controller,
+    Delete,
+    Get,
+    HttpCode,
+    HttpStatus,
+    Param,
+    ParseUUIDPipe,
+    Post,
+    Query,
+    UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CompanyId } from '../common/decorators/company-id.decorator';
+import { CompanyIdGuard } from '../common/guards/company-id.guard';
 import { AdjustingService } from './adjusting.service';
 import { CreateAdjustingDto } from './dto/create-adjusting.dto';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, CompanyIdGuard)
 @Controller('adjusting')
 export class AdjustingController {
   constructor(private readonly adjustingService: AdjustingService) {}
@@ -25,34 +25,30 @@ export class AdjustingController {
   /** GET /api/adjusting */
   @Get()
   findAll(
-    @Headers('x-company-id') companyId: string,
+    @CompanyId() companyId: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    if (!companyId) throw new BadRequestException('x-company-id header is required');
     return this.adjustingService.findAll(companyId, startDate, endDate);
   }
 
   /** GET /api/adjusting/:id */
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string, @Headers('x-company-id') companyId: string) {
-    if (!companyId) throw new BadRequestException('x-company-id header is required');
+  findOne(@Param('id', ParseUUIDPipe) id: string, @CompanyId() companyId: string) {
     return this.adjustingService.findOne(id, companyId);
   }
 
   /** POST /api/adjusting */
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() dto: CreateAdjustingDto, @Headers('x-company-id') companyId: string) {
-    if (!companyId) throw new BadRequestException('x-company-id header is required');
+  create(@Body() dto: CreateAdjustingDto, @CompanyId() companyId: string) {
     return this.adjustingService.create(dto, companyId);
   }
 
   /** DELETE /api/adjusting/:id */
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  remove(@Param('id', ParseUUIDPipe) id: string, @Headers('x-company-id') companyId: string) {
-    if (!companyId) throw new BadRequestException('x-company-id header is required');
+  remove(@Param('id', ParseUUIDPipe) id: string, @CompanyId() companyId: string) {
     return this.adjustingService.remove(id, companyId);
   }
 }

@@ -1,8 +1,10 @@
-import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards, Headers, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CompanyId } from '../common/decorators/company-id.decorator';
+import { CompanyIdGuard } from '../common/guards/company-id.guard';
 import { ReportsService } from './reports.service';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, CompanyIdGuard)
 @Controller('reports')
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
@@ -13,12 +15,11 @@ export class ReportsController {
    */
   @Get('ledger')
   getLedger(
-    @Headers('x-company-id') companyId: string,
+    @CompanyId() companyId: string,
     @Query('account_id') accountId?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    if (!companyId) throw new BadRequestException('x-company-id header is required');
     return this.reportsService.getLedger(companyId, accountId, startDate, endDate);
   }
 
@@ -28,11 +29,10 @@ export class ReportsController {
   @Get('ledger/:account_id')
   getLedgerForAccount(
     @Param('account_id', ParseUUIDPipe) accountId: string,
-    @Headers('x-company-id') companyId: string,
+    @CompanyId() companyId: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    if (!companyId) throw new BadRequestException('x-company-id header is required');
     return this.reportsService.getLedger(companyId, accountId, startDate, endDate);
   }
 
@@ -42,12 +42,11 @@ export class ReportsController {
    */
   @Get('trial-balance')
   getTrialBalance(
-    @Headers('x-company-id') companyId: string,
+    @CompanyId() companyId: string,
     @Query('adjusted') adjusted?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    if (!companyId) throw new BadRequestException('x-company-id header is required');
     const isAdjusted = adjusted === 'true';
     return this.reportsService.getTrialBalance(companyId, isAdjusted, startDate, endDate);
   }
@@ -57,11 +56,10 @@ export class ReportsController {
    */
   @Get('worksheet')
   getWorksheet(
-    @Headers('x-company-id') companyId: string,
+    @CompanyId() companyId: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    if (!companyId) throw new BadRequestException('x-company-id header is required');
     return this.reportsService.getWorksheet(companyId, startDate, endDate);
   }
 
@@ -70,11 +68,10 @@ export class ReportsController {
    */
   @Get('income-statement')
   getIncomeStatement(
-    @Headers('x-company-id') companyId: string,
+    @CompanyId() companyId: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    if (!companyId) throw new BadRequestException('x-company-id header is required');
     return this.reportsService.getIncomeStatement(companyId, startDate, endDate);
   }
 
@@ -84,10 +81,9 @@ export class ReportsController {
    */
   @Get('balance-sheet')
   getBalanceSheet(
-    @Headers('x-company-id') companyId: string,
+    @CompanyId() companyId: string,
     @Query('endDate') endDate?: string,
   ) {
-    if (!companyId) throw new BadRequestException('x-company-id header is required');
     return this.reportsService.getBalanceSheet(companyId, endDate);
   }
 
@@ -96,11 +92,10 @@ export class ReportsController {
    */
   @Get('statement-of-equity')
   getStatementOfEquity(
-    @Headers('x-company-id') companyId: string,
+    @CompanyId() companyId: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    if (!companyId) throw new BadRequestException('x-company-id header is required');
     return this.reportsService.getStatementOfEquity(companyId, startDate, endDate);
   }
 
@@ -110,9 +105,8 @@ export class ReportsController {
    */
   @Get('summary')
   getDashboardSummary(
-    @Headers('x-company-id') companyId: string,
+    @CompanyId() companyId: string,
   ) {
-    if (!companyId) throw new BadRequestException('x-company-id header is required');
     return this.reportsService.getDashboardSummary(companyId);
   }
 }
